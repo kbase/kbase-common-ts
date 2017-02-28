@@ -15,7 +15,7 @@ interface Session {
     tokenInfo : TokenInfo
 }
 
-export class Auth2Class {
+export class Auth2Session {
 
     cookieName : string;
     baseUrl : string;
