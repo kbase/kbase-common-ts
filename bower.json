@@ -1,0 +1,17 @@
+{
+  "name": "kbase-common-ts",
+  "description": "KBase Common Typescript",
+  "main": "dist/*.js",
+  "authors": [
+    "Erik Pearson <eapearson@lbl.gov>"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/eapearson/kbase-common-ts",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
