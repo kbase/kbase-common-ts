@@ -112,7 +112,7 @@ export class Cookie {
             this.value
         ].join('=')]
             .concat(cookieProps.map((prop) => {
-                return [prop.key, prop.value].filter(function (item) { 
+                return [prop.key, prop.value].filter((item) => { 
                         return typeof item === 'undefined' ? false : true;
                     })
                     .join('=');
@@ -138,7 +138,7 @@ export class CookieManager {
         var cookieString = this.global.cookie;
         if (cookieString.length > 0) {
             return cookieString.split(/;/)
-                .map(function (cookie) {
+                .map((cookie) => {
                     var pieces = cookie.split('=');
                     var name = pieces[0].trim();
                     var value = pieces[1].trim();
@@ -158,7 +158,7 @@ export class CookieManager {
 
     findCookies(key: string) {
         var cookies = this.importCookies();
-        return cookies.filter(function (cookie) {
+        return cookies.filter((cookie) => {
             if (cookie.name === key) {
                 return true;
             }
