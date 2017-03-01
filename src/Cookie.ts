@@ -111,9 +111,8 @@ export class Cookie {
             this.name,
             this.value
         ].join('=')]
-            .concat(cookieProps.map(function (prop) {
-                return [prop.key, prop.value]
-                    .filter((item) => {
+            .concat(cookieProps.map((prop) => {
+                return [prop.key, prop.value].filter(function (item) { 
                         return typeof item === 'undefined' ? false : true;
                     })
                     .join('=');

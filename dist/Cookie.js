@@ -95,8 +95,7 @@ define(["require", "exports"], function (require, exports) {
                     this.value
                 ].join('=')]
                 .concat(cookieProps.map(function (prop) {
-                return [prop.key, prop.value]
-                    .filter(function (item) {
+                return [prop.key, prop.value].filter(function (item) {
                     return typeof item === 'undefined' ? false : true;
                 })
                     .join('=');

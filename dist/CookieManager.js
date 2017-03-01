@@ -68,8 +68,8 @@ define(["require", "exports"], function (require, exports) {
                         this.value,
                         cookieProps.map(function (prop) {
                             return [prop.key, prop.value]
-                                .filter(() => {
-                                    return typeof prop.value === 'undefined' ? false : true;
+                                .filter((item) => {
+                                    return typeof item === 'undefined' ? false : true;
                                 })
                                 .join('=');
                         })
