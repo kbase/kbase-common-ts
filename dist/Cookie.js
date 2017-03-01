@@ -144,7 +144,7 @@ define(["require", "exports"], function (require, exports) {
             if (!key) {
                 return null;
             }
-            var cookie = this.findCookies(key), value;
+            var cookie = this.findCookies(key);
             if (cookie.length > 1) {
                 throw new Error('Too many cookies returned, expected 1');
             }
@@ -173,4 +173,3 @@ define(["require", "exports"], function (require, exports) {
     }());
     exports.CookieManager = CookieManager;
 });
-//# sourceMappingURL=Cookie.js.map

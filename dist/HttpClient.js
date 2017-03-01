@@ -8,7 +8,7 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-define(["require", "exports", "bluebird"], function (require, exports, Promise) {
+define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exports, HttpUtils_1, Promise) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var TimeoutError = (function (_super) {
@@ -107,7 +107,7 @@ define(["require", "exports", "bluebird"], function (require, exports, Promise) 
                 };
                 var url = new URL(options.url);
                 if (options.query) {
-                    url.search = options.query.toString();
+                    url.search = new HttpUtils_1.HttpQuery(options.query).toString();
                 }
                 if (options.timeout) {
                     xhr.timeout = options.timeout;
@@ -150,4 +150,3 @@ define(["require", "exports", "bluebird"], function (require, exports, Promise) 
     }());
     exports.HttpClient = HttpClient;
 });
-//# sourceMappingURL=HttpClient.js.map

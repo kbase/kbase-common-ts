@@ -9,8 +9,9 @@ define(["require", "exports"], function (require, exports) {
         return HttpQueryField;
     }());
     var HttpQuery = (function () {
-        function HttpQuery() {
+        function HttpQuery(map) {
             this.queryMap = {};
+            this.queryMap = map;
         }
         HttpQuery.prototype.addField = function (key, value) {
             this.queryMap[key] = value;
@@ -30,4 +31,3 @@ define(["require", "exports"], function (require, exports) {
     }());
     exports.HttpQuery = HttpQuery;
 });
-//# sourceMappingURL=HttpUtils.js.map

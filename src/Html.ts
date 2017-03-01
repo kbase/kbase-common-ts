@@ -114,27 +114,30 @@ export class Html {
     }
 
     // first port will only support strict arguments - attribs, children.
-    tag(name: string) : ITag {
+    tagMaker() : Function {
         let that = this;
-        var tagFun : ITag = (attribs : AttribMap, children : HtmlNode) : string => {
-            let node = '<';
+        var maker : any = (name: string) : Function => {
+            var tagFun : ITag = (attribs : AttribMap, children : HtmlNode) : string => {
+                let node = '<';
 
-            if (Object.keys(attribs).length === 0) {
-                node += name;
-            } else {
-                let tagAttribs = that.attribsToString(attribs);
-                node += [name, tagAttribs].join(' ');
+                if (Object.keys(attribs).length === 0) {
+                    node += name;
+                } else {
+                    let tagAttribs = that.attribsToString(attribs);
+                    node += [name, tagAttribs].join(' ');
+                }
+
+                node += '>';
+
+                node += that.renderChildren(children);
+
+                node += '</' + name + '>';
+
+                return node;
             }
-
-            node += '>';
-
-            node += that.renderChildren(children);
-
-            node += '</' + name + '>';
-
-            return node;
+            return tagFun;
         }
-        return tagFun;
+        return maker;
     }
 
 

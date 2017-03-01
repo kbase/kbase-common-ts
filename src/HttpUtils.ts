@@ -14,7 +14,8 @@ export class HttpQuery {
 
     queryMap : QueryMap = {};
 
-    constructor() {
+    constructor(map : QueryMap) {
+        this.queryMap = map;
     }
 
     addField(key: string, value: string) {

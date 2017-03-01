@@ -8,8 +8,14 @@ interface AuthProvider {
     label: string
 }
 
+export interface CookieConfig {
+    name: string,
+    domain: string
+}
+
 export interface AuthConfig {
     cookieName: string,
+    extraCookies: Array<CookieConfig>
     baseUrl: string,
     endpoints: AuthEndpoints,
     providers: Array<AuthProvider>
@@ -25,11 +31,33 @@ interface AuthEndpoints {
     logout: string
 }
 
-interface ILoginOptions {
+export interface ILoginOptions {
     node: HTMLElement, 
     provider: string, 
     redirectUrl: string, 
     stayLoggedIn: boolean    
+}
+
+export interface ILoginCreateOptions {
+    id: string,
+    user: string,
+    display: string,
+    email: string
+}
+
+export interface ITokenInfo {
+    created: number,
+    expires: number,
+    id: string,
+    name: string | null,
+    token: string,
+    type: string,
+    user: string
+}
+
+export interface ILoginCreateResponse {
+    redirect_url: string,
+    token: ITokenInfo
 }
 
 export class Auth2 {
@@ -50,21 +78,12 @@ export class Auth2 {
         return this.config.providers;
     }
 
-    setLastProvider(providerId: string): void {
-        this.cookieManager.setItem(new Cookie('last-provider-used')
-            .setValue(providerId)
-            .setMaxAge(Infinity)
-            .setPath('/'));
-    }
-
     login(config: ILoginOptions) : void {
     // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
         let html = new Html();
-        let t = html.tag;
+        let t = html.tagMaker();
         let form = t('form');
         let input = t('input');
-
-        this.setLastProvider(config.provider);
 
         let query = {
             provider: config.provider,
@@ -99,21 +118,21 @@ export class Auth2 {
         (<HTMLFormElement>document.getElementById(formId)).submit();
     }
 
-    logout(token: string): Promise<any> {
+    revokeToken(token: string, tokenid: string): Promise<any> {
         let httpClient = new HttpClient();
+
         return httpClient.request({
             method: 'DELETE',
             header: {
+                Authorization: token,
                 'Content-Type': 'application/json'
             },
-            data: JSON.stringify({
-                token: token
-            }),
-            url: this.config.endpoints.logout
+            url: this.config.baseUrl + '/' + this.config.endpoints.logout
         })
             .then((result: Response) => {
+                // console.log('DELETEd', result);
                 switch (result.status) {
-                    case 200:
+                    case 204:
                         return {
                             status: 'ok'
                         }
@@ -127,11 +146,40 @@ export class Auth2 {
             });
     }
 
-    introspectToken(token: string) {
+
+    logout(token: string): Promise<any> {
+        let httpClient = new HttpClient();
+
+        return httpClient.request({
+            method: 'DELETE',
+            header: {
+                Authorization: token,
+                'Content-Type': 'application/json'
+            },
+            url: this.config.baseUrl + '/' + this.config.endpoints.logout
+        })
+            .then((result: Response) => {
+                // console.log('DELETEd', result);
+                switch (result.status) {
+                    case 204:
+                        return {
+                            status: 'ok'
+                        }
+                    default:
+                        return {
+                            status: 'error',
+                            message: 'Unexpected response logging out',
+                            statusCode: result.status
+                        };
+                }
+            });
+    }
+
+    getIntrospection(token: string) {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
-            url: this.config.endpoints.introspect,
+            url: this.config.baseUrl + '/' + this.config.endpoints.introspect,
             header: {
                 Authorization: token
             }
@@ -147,14 +195,32 @@ export class Auth2 {
             });
     }
 
-    getLoginChoice(token: string) {
+    getAccount(token: string) {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
-            url: this.config.endpoints.loginChoice,
-            query: {
-                token: token
-            },
+            url: this.config.baseUrl + '/' + this.config.endpoints.profile,
+            header: {
+                Authorization: token,
+                Accept: 'application/json'
+            }
+        })
+        .then(function (result) {
+            try {
+                return JSON.parse(result.response);
+            } catch (ex) {
+                console.error('ERROR getting user account info', result);
+                throw new Error('Cannot parse "me" result:' + ex.message);
+            }
+        })
+    }
+
+    getLoginChoice(token: string) {
+        let httpClient = new HttpClient();
+        // console.error('fetching with', token);
+        return httpClient.request({
+            method: 'GET',
+            url: this.config.baseUrl + '/' + this.config.endpoints.loginChoice,
             header: {
                 Accept: 'application/json'
             }
@@ -188,17 +254,17 @@ export class Auth2 {
             });
     }
 
-    pickAccount(token: string, identityId: string) : Promise<any> {
+    loginPick(token: string, identityId: string) : Promise<any> {
         let data = {
-            token: token,
             id: identityId
         };
         let httpClient = new HttpClient();
         return httpClient.request({
-            method: 'PUT',
-            url: this.config.endpoints.loginPick,
+            method: 'POST',
+            url: this.config.baseUrl + '/' + this.config.endpoints.loginPick,
             data: JSON.stringify(data),
             header: {
+                Authorization: token,
                 'Content-Type': 'application/json',
                 'Accept': 'Application/json'
             }
@@ -232,11 +298,11 @@ export class Auth2 {
             });
     }
 
-    loginCreate(data : any) {
+    loginCreate(data : ILoginCreateOptions) : Promise<any> {
         let httpClient = new HttpClient();
-        httpClient.request({
+        return httpClient.request({
             method: 'POST',
-            url: this.config.endpoints.loginCreate,
+            url: this.config.baseUrl + '/' + this.config.endpoints.loginCreate,
             data: JSON.stringify(data),
             header: {
                 'Content-Type': 'application/json',

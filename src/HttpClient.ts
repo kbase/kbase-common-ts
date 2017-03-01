@@ -136,7 +136,7 @@ export class HttpClient {
 
             let url = new URL(options.url);
             if (options.query) {
-                url.search = options.query.toString();
+                url.search = new HttpQuery(options.query).toString();
             }
 
             if (options.timeout) {

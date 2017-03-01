@@ -83,23 +83,26 @@ define(["require", "exports"], function (require, exports) {
                 return [attribName, attribValue].join('=');
             }).join(' ');
         };
-        Html.prototype.tag = function (name) {
+        Html.prototype.tagMaker = function () {
             var that = this;
-            var tagFun = function (attribs, children) {
-                var node = '<';
-                if (Object.keys(attribs).length === 0) {
-                    node += name;
-                }
-                else {
-                    var tagAttribs = that.attribsToString(attribs);
-                    node += [name, tagAttribs].join(' ');
-                }
-                node += '>';
-                node += that.renderChildren(children);
-                node += '</' + name + '>';
-                return node;
+            var maker = function (name) {
+                var tagFun = function (attribs, children) {
+                    var node = '<';
+                    if (Object.keys(attribs).length === 0) {
+                        node += name;
+                    }
+                    else {
+                        var tagAttribs = that.attribsToString(attribs);
+                        node += [name, tagAttribs].join(' ');
+                    }
+                    node += '>';
+                    node += that.renderChildren(children);
+                    node += '</' + name + '>';
+                    return node;
+                };
+                return tagFun;
             };
-            return tagFun;
+            return maker;
         };
         Html.prototype.genId = function () {
             var random = Math.floor(Math.random() * 1000);
@@ -114,4 +117,3 @@ define(["require", "exports"], function (require, exports) {
     }());
     exports.Html = Html;
 });
-//# sourceMappingURL=Html.js.map

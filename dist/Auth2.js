@@ -12,18 +12,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         Auth2.prototype.getProviders = function () {
             return this.config.providers;
         };
-        Auth2.prototype.setLastProvider = function (providerId) {
-            this.cookieManager.setItem(new Cookie_1.Cookie('last-provider-used')
-                .setValue(providerId)
-                .setMaxAge(Infinity)
-                .setPath('/'));
-        };
         Auth2.prototype.login = function (config) {
             var html = new Html_1.Html();
-            var t = html.tag;
+            var t = html.tagMaker();
             var form = t('form');
             var input = t('input');
-            this.setLastProvider(config.provider);
             var query = {
                 provider: config.provider,
                 redirectUrl: config.redirectUrl,
@@ -52,21 +45,19 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             config.node.innerHTML = content;
             document.getElementById(formId).submit();
         };
-        Auth2.prototype.logout = function (token) {
+        Auth2.prototype.revokeToken = function (token, tokenid) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'DELETE',
                 header: {
+                    Authorization: token,
                     'Content-Type': 'application/json'
                 },
-                data: JSON.stringify({
-                    token: token
-                }),
-                url: this.config.endpoints.logout
+                url: this.config.baseUrl + '/' + this.config.endpoints.logout
             })
                 .then(function (result) {
                 switch (result.status) {
-                    case 200:
+                    case 204:
                         return {
                             status: 'ok'
                         };
@@ -79,11 +70,36 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.introspectToken = function (token) {
+        Auth2.prototype.logout = function (token) {
+            var httpClient = new HttpClient_1.HttpClient();
+            return httpClient.request({
+                method: 'DELETE',
+                header: {
+                    Authorization: token,
+                    'Content-Type': 'application/json'
+                },
+                url: this.config.baseUrl + '/' + this.config.endpoints.logout
+            })
+                .then(function (result) {
+                switch (result.status) {
+                    case 204:
+                        return {
+                            status: 'ok'
+                        };
+                    default:
+                        return {
+                            status: 'error',
+                            message: 'Unexpected response logging out',
+                            statusCode: result.status
+                        };
+                }
+            });
+        };
+        Auth2.prototype.getIntrospection = function (token) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
-                url: this.config.endpoints.introspect,
+                url: this.config.baseUrl + '/' + this.config.endpoints.introspect,
                 header: {
                     Authorization: token
                 }
@@ -99,14 +115,31 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
+        Auth2.prototype.getAccount = function (token) {
+            var httpClient = new HttpClient_1.HttpClient();
+            return httpClient.request({
+                method: 'GET',
+                url: this.config.baseUrl + '/' + this.config.endpoints.profile,
+                header: {
+                    Authorization: token,
+                    Accept: 'application/json'
+                }
+            })
+                .then(function (result) {
+                try {
+                    return JSON.parse(result.response);
+                }
+                catch (ex) {
+                    console.error('ERROR getting user account info', result);
+                    throw new Error('Cannot parse "me" result:' + ex.message);
+                }
+            });
+        };
         Auth2.prototype.getLoginChoice = function (token) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
-                url: this.config.endpoints.loginChoice,
-                query: {
-                    token: token
-                },
+                url: this.config.baseUrl + '/' + this.config.endpoints.loginChoice,
                 header: {
                     Accept: 'application/json'
                 }
@@ -140,17 +173,17 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.pickAccount = function (token, identityId) {
+        Auth2.prototype.loginPick = function (token, identityId) {
             var data = {
-                token: token,
                 id: identityId
             };
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
-                method: 'PUT',
-                url: this.config.endpoints.loginPick,
+                method: 'POST',
+                url: this.config.baseUrl + '/' + this.config.endpoints.loginPick,
                 data: JSON.stringify(data),
                 header: {
+                    Authorization: token,
                     'Content-Type': 'application/json',
                     'Accept': 'Application/json'
                 }
@@ -186,9 +219,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         };
         Auth2.prototype.loginCreate = function (data) {
             var httpClient = new HttpClient_1.HttpClient();
-            httpClient.request({
+            return httpClient.request({
                 method: 'POST',
-                url: this.config.endpoints.loginCreate,
+                url: this.config.baseUrl + '/' + this.config.endpoints.loginCreate,
                 data: JSON.stringify(data),
                 header: {
                     'Content-Type': 'application/json',
@@ -228,4 +261,3 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
     }());
     exports.Auth2 = Auth2;
 });
-//# sourceMappingURL=Auth2.js.map

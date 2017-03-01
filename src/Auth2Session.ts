@@ -1,5 +1,5 @@
 import { CookieManager, Cookie } from './Cookie'
-import { Auth2, AuthConfig } from './Auth2'
+import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions } from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
@@ -18,6 +18,9 @@ interface Session {
 export class Auth2Session {
 
     cookieName : string;
+
+    extraCookies: Array<CookieConfig>;
+
     baseUrl : string;
     sessionTtl : number;
 
@@ -29,6 +32,9 @@ export class Auth2Session {
 
     cookieMaxAge : number;
 
+    changeListeners : {[key:string] : Function};
+
+
 
 // cookieName: string,
 //     baseUrl: string,
@@ -37,6 +43,7 @@ export class Auth2Session {
 
     constructor (config: AuthConfig) {
         this.cookieName = config.cookieName;
+        this.extraCookies = config.extraCookies;
         this.baseUrl = config.baseUrl;
         this.cookieManager = new CookieManager();
         this.auth2Client = new Auth2(config)
@@ -49,6 +56,8 @@ export class Auth2Session {
         // how long does the cookie live for
         // TODO: set this properly
         this.cookieMaxAge = 300000;
+
+        this.changeListeners = {};
     }
 
     getToken() : string | null {
@@ -70,6 +79,20 @@ export class Auth2Session {
             return this.session.tokenInfo.name;
         }
         return null;
+    }
+
+    getKbaseSession() : any {
+        if (!this.session) {
+            return null;
+        }
+        let info = this.session.tokenInfo;
+        return {
+            un: info.user,
+            user_id: info.user,
+            name: info.name,
+            token: this.session.token,
+            kbase_sessionid: null
+        };
     }
 
     isAuthorized() : boolean {
@@ -97,10 +120,24 @@ export class Auth2Session {
         return this.auth2Client;
     }
 
-    pickAccount(token : string, identityId : string) : Promise<any> {
-        return this.auth2Client.pickAccount(token, identityId)
-            .then((result) =>{
-                this.setSessionCookie(result.data.token);
+    loginPick(token : string, identityId : string) : Promise<any> {
+        let that = this;
+        return that.auth2Client.loginPick(token, identityId)
+            .then((result) => {
+                // console.log('picked', token, identityId, result);
+                that.setSessionCookie(result.data.token.token);
+                return that.evaluateSession()
+                    .then(() => {
+                        return result;
+                    });
+            });
+    }
+
+    loginCreate(data: ILoginCreateOptions) : Promise<any> {
+        return this.auth2Client.loginCreate(data)
+            .then((result) => {
+                // console.log('CREATED', result);
+                this.setSessionCookie(result.data.token.token);
                 return this.evaluateSession()
                     .then(() => {
                         return result;
@@ -108,11 +145,36 @@ export class Auth2Session {
             });
     }
 
-    logout() : Promise<any> {
-        return this.auth2Client.logout(this.getToken());
+    getAccount() : Promise<any> {
+        return this.auth2Client.getAccount(this.getToken());
     }
 
-    changeListeners : {[key:string] : Function};
+    getIntrospection() : Promise<any> {
+        return this.auth2Client.getIntrospection(this.getToken());
+    }
+
+    getLoginCoice() : Promise<any> {
+        return this.auth2Client.getLoginChoice(this.getToken());
+    }
+
+    login(config : ILoginOptions) {
+        this.setLastProvider(config.provider);
+        return this.auth2Client.login(config)
+    }
+            
+
+    logout() : Promise<any> {
+        let that = this;
+        return this.getIntrospection()
+            .then(function (tokenInfo) {
+                return that.auth2Client.revokeToken(that.getToken(), tokenInfo.id);
+            })
+            .then(() => {
+                that.removeSessionCookie();
+                return that.evaluateSession();
+            });
+    }
+
 
     onChange(listener : Function) : string {
         let utils = new Utils();
@@ -139,6 +201,7 @@ export class Auth2Session {
 
     evaluateSession() : Promise<any> {
         let token = this.auth2Client.getAuthCookie();
+        // console.log('TOKEN', token);
         let hadSession = this.session ? true : false;
         var change : string | null = null;
         return Promise.try(() => {
@@ -162,7 +225,7 @@ export class Auth2Session {
                 // If no session, yet we have a token, we need to 
                 // fetch the session info.
                 if (!this.session) {
-                    return this.auth2Client.introspectToken(token)
+                    return this.auth2Client.getIntrospection(token)
                         .then((tokenInfo) => {
                             if (!tokenInfo) {
                                 if (hadSession) {
@@ -201,30 +264,34 @@ export class Auth2Session {
 
     loopTimer : number;
 
-    start() : void {
-        let nextLoop = () => {
-            if (!this.serviceLoopActive) {
-                return;
+    start() : Promise<any> {
+        return Promise.try(() => {
+            let nextLoop = () => {
+                if (!this.serviceLoopActive) {
+                    return;
+                }
+                this.loopTimer = window.setTimeout(serviceLoop, 1000);
+            };
+            let serviceLoop = () => {
+                return this.evaluateSession()
+                    .then(() => {
+                        nextLoop();
+                    });            
             }
-            this.loopTimer = window.setTimeout(serviceLoop, 1000);
-        };
-        let serviceLoop = () => {
-            return this.evaluateSession()
-                .then(() => {
-                    nextLoop();
-                });            
-        }
-        this.serviceLoopActive = true;
-        serviceLoop();
-        return;
+            this.serviceLoopActive = true;
+            serviceLoop();
+            return;
+        });
     }
 
-    stop() : void {
-        this.serviceLoopActive = false;
-        if (this.loopTimer) {
-            window.clearTimeout(this.loopTimer);
-            this.loopTimer = null;
-        }
+    stop() : Promise<any> {
+        return Promise.try(() => {
+            this.serviceLoopActive = false;
+            if (this.loopTimer) {
+                window.clearTimeout(this.loopTimer);
+                this.loopTimer = null;
+            }
+        });
     }
 
     // COOKIES
@@ -234,14 +301,31 @@ export class Auth2Session {
             .setValue(token)
             .setPath('/')
             .setMaxAge(this.cookieMaxAge));
+        let that = this;
+        if (this.extraCookies) {
+            this.extraCookies.forEach((cookieConfig) => {
+                that.cookieManager.setItem(new Cookie(cookieConfig.name)
+                    .setValue(token)
+                    .setPath('/')
+                    .setDomain(cookieConfig.domain)
+                    .setMaxAge(that.cookieMaxAge));
+            });
+        }
     }
 
     removeSessionCookie() {
         this.cookieManager.removeItem(new Cookie(this.cookieName)
             .setPath('/'));
+        if (this.extraCookies) {
+            this.extraCookies.forEach((cookieConfig) => {
+                this.cookieManager.removeItem(new Cookie(cookieConfig.name)
+                    .setPath('/')
+                    .setDomain(cookieConfig.domain));
+            })
+        }
     }
 
-    // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string) {
-    //     return Auth2.login(node, provider, redirectUrl)
-    // }
+
+
+
 }
