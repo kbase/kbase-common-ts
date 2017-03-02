@@ -196,7 +196,6 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                 }
                 return _this.auth2Client.getIntrospection(cookieToken)
                     .then(function (tokenInfo) {
-                    console.log('Evaluation token info', tokenInfo);
                     _this.session = {
                         token: cookieToken,
                         fetchedAt: new Date().getTime(),

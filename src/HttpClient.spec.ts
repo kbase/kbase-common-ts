@@ -19,7 +19,7 @@ describe('Basic Test', () => {
                 return null;
             })
             .catch((err) => {
-                console.log('error', err);
+                console.error('error', err);
                 done.fail(err);
             });
     });
@@ -35,7 +35,7 @@ describe('Basic Test', () => {
                 return null;
             })
             .catch((err) => {
-                console.log('error', err);
+                console.error('error', err);
                 done.fail(err);
             });
     });
@@ -51,7 +51,7 @@ describe('Basic Test', () => {
                 return null;
             })
             .catch((err) => {
-                console.log('error', err);
+                console.error('error', err);
                 done.fail(err);
             });
     });
@@ -67,7 +67,7 @@ describe('Basic Test', () => {
                 return null;
             })
             .catch(TimeoutError, (err) => {
-                console.log('got timeout elapsed', err.elapsed);
+                console.error('got timeout elapsed', err.elapsed);
                 expect(err.elapsed).toBeGreaterThan(1000);
                 done();
                 return null;

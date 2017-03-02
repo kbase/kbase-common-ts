@@ -131,7 +131,6 @@ export class Auth2Session {
     loginCreate(data: ILoginCreateOptions) : Promise<any> {
         return this.auth2Client.loginCreate(data)
             .then((result) => {
-                // console.log('CREATED', result);
                 this.setSessionCookie(result.data.token.token, result.data.token.expires);
                 return this.evaluateSession()
                     .then(() => {
@@ -196,7 +195,6 @@ export class Auth2Session {
 
     checkSession() : string {
         let cookieToken = this.auth2Client.getAuthCookie();
-        // console.log('TOKEN', token);
         let currentSession = this.session;
         let hadSession = this.session ? true : false;
         var result : string | null = null;
@@ -270,7 +268,6 @@ export class Auth2Session {
             return this.auth2Client.getIntrospection(cookieToken)
                 .then((tokenInfo) => {
                     // TODO detect invalidated token...
-                    console.log('Evaluation token info', tokenInfo);
                     this.session = {
                         token: cookieToken,
                         fetchedAt: new Date().getTime(),

@@ -133,7 +133,6 @@ export class Auth2 {
             url: this.config.baseUrl + '/' + this.config.endpoints.logout
         })
             .then((result: Response) => {
-                // console.log('DELETEd', result);
                 switch (result.status) {
                     case 204:
                         return {
@@ -163,7 +162,6 @@ export class Auth2 {
             url: this.config.baseUrl + '/' + this.config.endpoints.logout
         })
             .then((result: Response) => {
-                // console.log('DELETEd', result);
                 switch (result.status) {
                     case 204:
                         return {
