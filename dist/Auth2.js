@@ -49,6 +49,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'DELETE',
+                withCredentials: true,
                 header: {
                     Authorization: token,
                     'Content-Type': 'application/json'
@@ -74,6 +75,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'DELETE',
+                withCredentials: true,
                 header: {
                     Authorization: token,
                     'Content-Type': 'application/json'
@@ -105,13 +107,21 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             })
                 .then(function (result) {
-                try {
-                    var tokenInfo = JSON.parse(result.response);
-                    return tokenInfo;
-                }
-                catch (ex) {
-                    console.error('ERROR', result);
-                    throw new Error('Cannot parse token introspection result: ' + ex.message);
+                switch (result.status) {
+                    case 200:
+                        return JSON.parse(result.response);
+                    case 401:
+                        console.error('Error in getIntrospection', result);
+                        var errorData = JSON.parse(result.response).error;
+                        console.error('Error in getIntrospection', errorData);
+                        switch (errorData.appCode) {
+                            case 10011:
+                                throw new Error(errorData.appError);
+                            default:
+                                throw new Error('Unexpected error: ' + errorData.appError);
+                        }
+                    default:
+                        throw new Error('Unexpected error: ' + errorData.appError);
                 }
             });
         };
@@ -119,6 +129,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
+                withCredentials: true,
                 url: this.config.baseUrl + '/' + this.config.endpoints.profile,
                 header: {
                     Authorization: token,
@@ -135,10 +146,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.getLoginChoice = function (token) {
+        Auth2.prototype.getLoginChoice = function () {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
+                withCredentials: true,
                 url: this.config.baseUrl + '/' + this.config.endpoints.loginChoice,
                 header: {
                     Accept: 'application/json'
@@ -180,6 +192,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'POST',
+                withCredentials: true,
                 url: this.config.baseUrl + '/' + this.config.endpoints.loginPick,
                 data: JSON.stringify(data),
                 header: {
@@ -221,6 +234,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'POST',
+                withCredentials: true,
                 url: this.config.baseUrl + '/' + this.config.endpoints.loginCreate,
                 data: JSON.stringify(data),
                 header: {

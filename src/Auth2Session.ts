@@ -1,18 +1,15 @@
 import { CookieManager, Cookie } from './Cookie'
-import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions } from './Auth2'
+import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, ITokenInfo} from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
 
-interface TokenInfo {
-    user : string,
-    name : string
-}
+
 
 interface Session {
     token : string,
     fetchedAt : number,
-    tokenInfo : TokenInfo
+    tokenInfo : ITokenInfo
 }
 
 export class Auth2Session {
@@ -22,7 +19,6 @@ export class Auth2Session {
     extraCookies: Array<CookieConfig>;
 
     baseUrl : string;
-    sessionTtl : number;
 
     session : Session;
     auth2Client: Auth2;
@@ -50,14 +46,14 @@ export class Auth2Session {
         this.serviceLoopActive = false;
         // TODO: feed this from config.
 
-        // how long is the session cached for
-        this.sessionTtl = 300000;
 
         // how long does the cookie live for
         // TODO: set this properly
         this.cookieMaxAge = 300000;
 
         this.changeListeners = {};
+
+        this.session = null;
     }
 
     getToken() : string | null {
@@ -124,8 +120,7 @@ export class Auth2Session {
         let that = this;
         return that.auth2Client.loginPick(token, identityId)
             .then((result) => {
-                // console.log('picked', token, identityId, result);
-                that.setSessionCookie(result.data.token.token);
+                that.setSessionCookie(result.data.token.token, result.data.token.expires);
                 return that.evaluateSession()
                     .then(() => {
                         return result;
@@ -137,7 +132,7 @@ export class Auth2Session {
         return this.auth2Client.loginCreate(data)
             .then((result) => {
                 // console.log('CREATED', result);
-                this.setSessionCookie(result.data.token.token);
+                this.setSessionCookie(result.data.token.token, result.data.token.expires);
                 return this.evaluateSession()
                     .then(() => {
                         return result;
@@ -154,7 +149,7 @@ export class Auth2Session {
     }
 
     getLoginCoice() : Promise<any> {
-        return this.auth2Client.getLoginChoice(this.getToken());
+        return this.auth2Client.getLoginChoice();
     }
 
     login(config : ILoginOptions) {
@@ -199,67 +194,110 @@ export class Auth2Session {
         });
     }
 
-    evaluateSession() : Promise<any> {
-        let token = this.auth2Client.getAuthCookie();
+    checkSession() : string {
+        let cookieToken = this.auth2Client.getAuthCookie();
         // console.log('TOKEN', token);
+        let currentSession = this.session;
         let hadSession = this.session ? true : false;
-        var change : string | null = null;
-        return Promise.try(() => {
-            if (!token) {
-                if (this.session) {
-                    change = 'loggedout';
-                }
-                this.session = null;
-            } else {
-                let now = new Date().getTime();
-                if (this.session) {
-                    if (now - this.session.fetchedAt > this.sessionTtl) {
-                        change = 'loggedout';
-                        this.session = null;
-                    } else if (token !== this.session.token) {
-                        change = 'newuser';
-                        this.session = null;
-                    }
-                }
+        var result : string | null = null;
+        let now = new Date().getTime();
 
-                // If no session, yet we have a token, we need to 
-                // fetch the session info.
-                if (!this.session) {
-                    return this.auth2Client.getIntrospection(token)
-                        .then((tokenInfo) => {
-                            if (!tokenInfo) {
-                                if (hadSession) {
-                                    change = 'loggedout';
-                                    this.session = null;
-                                }
-                            } else {
-                                if (!this.session) {
-                                    change = 'loggedin';
-                                } else {
-                                    if (this.session.token !== token) {
-                                        change = 'newuser';
-                                    }
-                                }
-                                this.session = {
-                                    token: token,
-                                    fetchedAt: new Date().getTime(),
-                                    tokenInfo: tokenInfo
-                                };
-                            }
-                        })
-                        .catch((err) => {
-                            console.error('ERROR', err);
-                            if (this.session) {
-                                change = 'loggedout';
-                                this.session = null;
-                            }
-                        });            
-                }
+        if (!cookieToken) {
+            this.removeSessionCookie();
+            if (this.session) {
+                this.session = null;
+                return 'loggedout';
+            } else {
+                return 'nosession'
             }
-        })
-        .then(() => {
-            this.notifyListeners(change);
-        })
+        }
+
+        if (this.session === null) {
+            return 'nosession';
+        }
+
+        // Detect user or session switcheroo. Just kill the old session.
+        if (cookieToken !== currentSession.token) {
+            // Detect change in token 
+            this.session = null;
+            return 'newtoken';
+        }
+
+        // Detect expired session
+        let expiresIn = this.session.tokenInfo.expires - now;
+        if (expiresIn <= 0) {
+            this.session = null;
+            this.removeSessionCookie();
+            return 'loggedout';
+        } else if (expiresIn <= 300000) {
+            // TODO: issue warning to ui.
+            // console.warn('session about to expire', expiresIn);
+        } 
+
+        let sessionAge = now - this.session.fetchedAt;
+        // If we _still_ have a session, see if we need to refetch the session state.
+        if (sessionAge > this.session.tokenInfo.cachefor) {
+            this.session = null;
+            return 'cacheexpired';
+        }
+        return 'ok';
+    }
+
+    evaluateSession() : Promise<any> {
+        return Promise.try(() => {
+            let change : string | null = null;
+            let sessionState = this.checkSession();
+            switch (sessionState) {
+                case 'loggedout':
+                    this.notifyListeners('loggedout');
+                    return;
+                case 'ok':
+                    return;
+                case 'nosession':
+                case 'newtoken':
+                case 'cacheexpired':
+                    break;
+                default: throw new Error('Unexpected session state: ' + sessionState);
+            }
+
+            // No need to fetch a new session if checkSession lets
+            // us keep it.
+
+            let cookieToken = this.auth2Client.getAuthCookie();
+            if (!cookieToken) {
+                return;
+            }
+            return this.auth2Client.getIntrospection(cookieToken)
+                .then((tokenInfo) => {
+                    // TODO detect invalidated token...
+                    console.log('Evaluation token info', tokenInfo);
+                    this.session = {
+                        token: cookieToken,
+                        fetchedAt: new Date().getTime(),
+                        tokenInfo: tokenInfo
+                    };
+
+                    switch (sessionState) {
+                        case 'nosession':
+                            this.notifyListeners('loggedin');
+                            break;
+                        case 'newtoken':
+                            this.notifyListeners('loggedin');
+                            break;
+                        case 'cacheexpired':
+                            // nothing special;
+                    }
+                })
+                .catch((err) => {
+                    // TODO: signal error to UI.
+                    console.error('ERROR', err);                    
+                    this.session = null;
+                    this.removeSessionCookie();
+                    if (sessionState === 'newtoken') {
+                        this.notifyListeners('loggedout');
+                    }
+                });            
+        });
     }
 
     loopTimer : number;
@@ -296,19 +334,29 @@ export class Auth2Session {
 
     // COOKIES
 
-    setSessionCookie(token : string) {
-        this.cookieManager.setItem(new Cookie(this.cookieName)
+    setSessionCookie(token : string, expiration: number) {
+        let sessionCookie = new Cookie(this.cookieName)
             .setValue(token)
-            .setPath('/')
-            .setMaxAge(this.cookieMaxAge));
+            .setPath('/');
+
+        if (this.isSessionPersistent()) {
+            sessionCookie.setExpires(new Date(expiration).toUTCString());
+        }
+
+        this.cookieManager.setItem(sessionCookie);
         let that = this;
         if (this.extraCookies) {
             this.extraCookies.forEach((cookieConfig) => {
-                that.cookieManager.setItem(new Cookie(cookieConfig.name)
+                let extraCookie = new Cookie(cookieConfig.name)
                     .setValue(token)
                     .setPath('/')
-                    .setDomain(cookieConfig.domain)
-                    .setMaxAge(that.cookieMaxAge));
+                    .setDomain(cookieConfig.domain);
+
+                if (this.isSessionPersistent()) {
+                    extraCookie.setExpires(new Date(expiration).toUTCString());
+                };                    
+
+                that.cookieManager.setItem(extraCookie);                    
             });
         }
     }
@@ -323,6 +371,29 @@ export class Auth2Session {
                     .setDomain(cookieConfig.domain));
             })
         }
+    }
+
+    // Session persistence
+
+    setSessionPersistent(isPersistent : boolean) : void {
+        let cookie = new Cookie('sessionpersist')
+            .setPath('/');
+
+        if (isPersistent) {
+            this.cookieManager.setItem(cookie
+                .setValue('t')
+                .setMaxAge(Infinity));
+        } else {
+            this.cookieManager.removeItem(cookie);
+        }
+    }
+
+    isSessionPersistent() : boolean {
+        var persist = this.cookieManager.getItem('sessionpersist');
+        if (persist === 't') {
+            return true;            
+        }
+        return false;
     }
 
 

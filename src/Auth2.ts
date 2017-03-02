@@ -52,8 +52,10 @@ export interface ITokenInfo {
     name: string | null,
     token: string,
     type: string,
-    user: string
+    user: string,
+    cachefor: number
 }
+
 
 export interface ILoginCreateResponse {
     redirect_url: string,
@@ -123,6 +125,7 @@ export class Auth2 {
 
         return httpClient.request({
             method: 'DELETE',
+            withCredentials: true,            
             header: {
                 Authorization: token,
                 'Content-Type': 'application/json'
@@ -152,6 +155,7 @@ export class Auth2 {
 
         return httpClient.request({
             method: 'DELETE',
+            withCredentials: true,            
             header: {
                 Authorization: token,
                 'Content-Type': 'application/json'
@@ -175,7 +179,7 @@ export class Auth2 {
             });
     }
 
-    getIntrospection(token: string) {
+    getIntrospection(token: string) : Promise<ITokenInfo> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
@@ -184,13 +188,22 @@ export class Auth2 {
                 Authorization: token
             }
         })
-            .then((result: Response) => {
-                try {
-                    let tokenInfo = JSON.parse(result.response);
-                    return tokenInfo;
-                } catch (ex) {
-                    console.error('ERROR', result);
-                    throw new Error('Cannot parse token introspection result: ' + ex.message);
+            .then((result: Response) => {                
+                switch (result.status) {
+                    case 200:
+                        return <ITokenInfo>JSON.parse(result.response);
+                    case 401:
+                        console.error('Error in getIntrospection', result);
+                        let errorData = JSON.parse(result.response).error;
+                        console.error('Error in getIntrospection', errorData);
+                        switch (errorData.appCode) {
+                            case 10011:
+                                throw new Error(errorData.appError);
+                            default: 
+                                throw new Error('Unexpected error: ' + errorData.appError);
+                        }
+                    default: 
+                        throw new Error('Unexpected error: ' + errorData.appError);
                 }
             });
     }
@@ -199,6 +212,7 @@ export class Auth2 {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
+            withCredentials: true,            
             url: this.config.baseUrl + '/' + this.config.endpoints.profile,
             header: {
                 Authorization: token,
@@ -215,11 +229,12 @@ export class Auth2 {
         })
     }
 
-    getLoginChoice(token: string) {
+    getLoginChoice() {
         let httpClient = new HttpClient();
         // console.error('fetching with', token);
         return httpClient.request({
             method: 'GET',
+            withCredentials: true,
             url: this.config.baseUrl + '/' + this.config.endpoints.loginChoice,
             header: {
                 Accept: 'application/json'
@@ -261,6 +276,7 @@ export class Auth2 {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'POST',
+            withCredentials: true,
             url: this.config.baseUrl + '/' + this.config.endpoints.loginPick,
             data: JSON.stringify(data),
             header: {
@@ -302,6 +318,7 @@ export class Auth2 {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'POST',
+            withCredentials: true,            
             url: this.config.baseUrl + '/' + this.config.endpoints.loginCreate,
             data: JSON.stringify(data),
             header: {
