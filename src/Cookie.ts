@@ -89,17 +89,33 @@ export class Cookie {
                 value: this.path
             });
         }
+
         if (typeof this.expires !== 'undefined') {
             cookieProps.push({
                 key: 'expires',
                 value: this.expires
             });
-        }
-        if (typeof this.maxAge !== 'undefined') {
-            cookieProps.push({
-                key: 'max-age',
-                value: String(this.maxAge)
-            });
+        } else {
+            if (typeof this.maxAge !== 'undefined') {
+                var maxAgeValue : string;
+                if (this.maxAge === Infinity) {
+                    cookieProps.push({
+                        key: 'expires',
+                        value: new Date('9999-12-31T23:59:59Z').toUTCString()
+                    });
+                } else {
+                    // set both expires and max-age. Max-age because it is more accurate
+                    // and expires because it is more compatible (well, with IE).
+                    cookieProps.push({
+                        key: 'expires',
+                        value: new Date(new Date().getTime() + this.maxAge * 1000).toUTCString()
+                    });
+                    cookieProps.push({
+                        key: 'max-age',
+                        value: String(this.maxAge)
+                    });
+                }           
+            }
         }
         if (typeof this.secure !== 'undefined') {
             cookieProps.push({
@@ -120,7 +136,6 @@ export class Cookie {
             .join(';');
         return cookieString;
     }
-
 }
 
 

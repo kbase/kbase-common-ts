@@ -79,11 +79,26 @@ define(["require", "exports"], function (require, exports) {
                     value: this.expires
                 });
             }
-            if (typeof this.maxAge !== 'undefined') {
-                cookieProps.push({
-                    key: 'max-age',
-                    value: String(this.maxAge)
-                });
+            else {
+                if (typeof this.maxAge !== 'undefined') {
+                    var maxAgeValue;
+                    if (this.maxAge === Infinity) {
+                        cookieProps.push({
+                            key: 'expires',
+                            value: new Date('9999-12-31T23:59:59Z').toUTCString()
+                        });
+                    }
+                    else {
+                        cookieProps.push({
+                            key: 'expires',
+                            value: new Date(new Date().getTime() + this.maxAge * 1000).toUTCString()
+                        });
+                        cookieProps.push({
+                            key: 'max-age',
+                            value: String(this.maxAge)
+                        });
+                    }
+                }
             }
             if (typeof this.secure !== 'undefined') {
                 cookieProps.push({
