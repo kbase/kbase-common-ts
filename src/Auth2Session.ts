@@ -1,5 +1,5 @@
 import { CookieManager, Cookie } from './Cookie'
-import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, ITokenInfo} from './Auth2'
+import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, LinkOptions, UnlinkOptions, ITokenInfo} from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
@@ -143,6 +143,10 @@ export class Auth2Session {
         return this.auth2Client.getAccount(this.getToken());
     }
 
+    getTokens() : Promise<any> {
+        return this.auth2Client.getTokens(this.getToken());
+    }
+
     getIntrospection() : Promise<any> {
         return this.auth2Client.getIntrospection(this.getToken());
     }
@@ -155,7 +159,25 @@ export class Auth2Session {
         this.setLastProvider(config.provider);
         return this.auth2Client.login(config)
     }
-            
+
+    link(config : LinkOptions) {
+        return this.auth2Client.linkPost(config);
+    }
+
+    removeLink(config: UnlinkOptions) {
+        return this.auth2Client.removeLink(this.getToken(), config);
+    }
+
+    getLinkChoice(token: string): Promise<any> {
+        return this.auth2Client.getLinkChoice(this.getToken());
+    }
+
+    linkPick(identityId : string) : Promise<any> {
+        return this.auth2Client.linkPick(this.getToken(), identityId)
+            .then((result) => {
+                return result;
+            });
+    }         
 
     logout() : Promise<any> {
         let that = this;

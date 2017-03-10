@@ -50,6 +50,9 @@ define(["require", "exports"], function (require, exports) {
             if (typeof children === 'number') {
                 return String(children);
             }
+            if (!(children instanceof Array)) {
+                throw new Error('hmm, not an array? ' + typeof children);
+            }
             var that = this;
             return children.map(function (child) {
                 return that.renderChildren(child);
@@ -84,19 +87,47 @@ define(["require", "exports"], function (require, exports) {
             }).join(' ');
         };
         Html.prototype.tagMaker = function () {
-            var that = this;
+            var _this = this;
+            var isHtmlNode = function (val) {
+                return true;
+            };
+            var isAttribMap = function (val) {
+                return true;
+            };
             var maker = function (name) {
                 var tagFun = function (attribs, children) {
                     var node = '<';
-                    if (Object.keys(attribs).length === 0) {
-                        node += name;
+                    if (typeof children === 'undefined' &&
+                        typeof attribs === 'object' &&
+                        !(attribs instanceof Array) &&
+                        isAttribMap(attribs)) {
+                        if (Object.keys(attribs).length === 0) {
+                            node += name;
+                        }
+                        else {
+                            var tagAttribs = _this.attribsToString(attribs);
+                            node += [name, tagAttribs].join(' ');
+                        }
+                        node += '>';
                     }
-                    else {
-                        var tagAttribs = that.attribsToString(attribs);
-                        node += [name, tagAttribs].join(' ');
+                    else if (typeof children === 'undefined' &&
+                        typeof attribs === 'undefined') {
+                        node += name + '>';
                     }
-                    node += '>';
-                    node += that.renderChildren(children);
+                    else if (typeof children === 'undefined' &&
+                        isHtmlNode(attribs)) {
+                        node += name + '>' + _this.renderChildren(attribs);
+                    }
+                    else if (isAttribMap(attribs) && isHtmlNode(children)) {
+                        if (Object.keys(attribs).length === 0) {
+                            node += name;
+                        }
+                        else {
+                            var tagAttribs = _this.attribsToString(attribs);
+                            node += [name, tagAttribs].join(' ');
+                        }
+                        node += '>' + _this.renderChildren(children);
+                    }
                     node += '</' + name + '>';
                     return node;
                 };

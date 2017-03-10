@@ -76,6 +76,9 @@ export class Html {
         if (typeof children === 'number') {
             return String(children);
         }
+        if (!(children instanceof Array)) {
+            throw new Error ('hmm, not an array? ' + typeof children);
+        }
         let that = this;
         return children.map((child) => {
             return that.renderChildren(child);
@@ -115,24 +118,46 @@ export class Html {
 
     // first port will only support strict arguments - attribs, children.
     tagMaker() : Function {
-        let that = this;
+        let isHtmlNode = (val : AttribMap | HtmlNode): val is HtmlNode => {
+            return true;
+        }
+        let isAttribMap = (val : AttribMap | HtmlNode): val is AttribMap => {
+            return true;
+        }
         var maker : any = (name: string) : Function => {
-            var tagFun : ITag = (attribs : AttribMap, children : HtmlNode) : string => {
+            var tagFun : ITag = (attribs : AttribMap | HtmlNode, children? : HtmlNode | undefined) : string => {
                 let node = '<';
 
-                if (Object.keys(attribs).length === 0) {
-                    node += name;
-                } else {
-                    let tagAttribs = that.attribsToString(attribs);
-                    node += [name, tagAttribs].join(' ');
+                // case 1. one argument, first may be attribs or content, but attribs if object.
+                if (typeof children === 'undefined' && 
+                    typeof attribs === 'object' &&
+                    ! (attribs instanceof Array) &&
+                    isAttribMap(attribs)) {
+                     if (Object.keys(attribs).length === 0) {
+                        node += name;
+                    } else {
+                        let tagAttribs = this.attribsToString(attribs);
+                        node += [name, tagAttribs].join(' ');
+                    }
+                    node += '>';
+                // case 2. 1 arg, not object, must be content
+                } else if (typeof children === 'undefined' &&
+                            typeof attribs === 'undefined') {
+                    node += name + '>';
+                } else if (typeof children === 'undefined' && 
+                    isHtmlNode(attribs)) {
+                    
+                    node += name + '>' + this.renderChildren(attribs);
+                } else if (isAttribMap(attribs) && isHtmlNode(children)) {
+                    if (Object.keys(attribs).length === 0) {
+                        node += name;
+                    } else {
+                        let tagAttribs = this.attribsToString(attribs);
+                        node += [name, tagAttribs].join(' ');
+                    }
+                    node += '>' + this.renderChildren(children);
                 }
-
-                node += '>';
-
-                node += that.renderChildren(children);
-
                 node += '</' + name + '>';
-
                 return node;
             }
             return tagFun;

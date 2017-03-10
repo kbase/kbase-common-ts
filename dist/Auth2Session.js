@@ -90,6 +90,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.getAccount = function () {
             return this.auth2Client.getAccount(this.getToken());
         };
+        Auth2Session.prototype.getTokens = function () {
+            return this.auth2Client.getTokens(this.getToken());
+        };
         Auth2Session.prototype.getIntrospection = function () {
             return this.auth2Client.getIntrospection(this.getToken());
         };
@@ -99,6 +102,21 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.login = function (config) {
             this.setLastProvider(config.provider);
             return this.auth2Client.login(config);
+        };
+        Auth2Session.prototype.link = function (config) {
+            return this.auth2Client.linkPost(config);
+        };
+        Auth2Session.prototype.removeLink = function (config) {
+            return this.auth2Client.removeLink(this.getToken(), config);
+        };
+        Auth2Session.prototype.getLinkChoice = function (token) {
+            return this.auth2Client.getLinkChoice(this.getToken());
+        };
+        Auth2Session.prototype.linkPick = function (identityId) {
+            return this.auth2Client.linkPick(this.getToken(), identityId)
+                .then(function (result) {
+                return result;
+            });
         };
         Auth2Session.prototype.logout = function () {
             var that = this;
