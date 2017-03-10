@@ -95,7 +95,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         Auth2.prototype.removeLink = function (token, config) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
-                method: 'DELETE',
+                method: 'POST',
                 withCredentials: true,
                 header: {
                     Authorization: token,

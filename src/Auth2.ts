@@ -236,11 +236,39 @@ export class Auth2 {
     //     window.location.href = url;
     // }
 
+    // removeLink(token: string, config: UnlinkOptions) : Promise<any> {
+    //     let httpClient = new HttpClient();
+
+    //     return httpClient.request({
+    //         method: 'DELETE',
+    //         withCredentials: true,
+    //         header: {
+    //             Authorization: token,
+    //             'Content-Type': 'application/json'
+    //         },
+    //         url: [this.config.baseUrl, endpoints.linkRemove, config.identityId].join('/')
+    //     })
+    //         .then((result: Response) => {
+    //             switch (result.status) {
+    //                 case 204:
+    //                     return {
+    //                         status: 'ok'
+    //                     }                  
+    //                 default:
+    //                     return {
+    //                         status: 'error',
+    //                         message: 'Unexpected response logging out',
+    //                         statusCode: result.status
+    //                     };
+    //             }
+    //         });
+    // }
+
     removeLink(token: string, config: UnlinkOptions) : Promise<any> {
         let httpClient = new HttpClient();
 
         return httpClient.request({
-            method: 'DELETE',
+            method: 'POST',
             withCredentials: true,
             header: {
                 Authorization: token,
@@ -263,6 +291,7 @@ export class Auth2 {
                 }
             });
     }
+
 
     revokeToken(token: string, tokenid: string): Promise<any> {
         let httpClient = new HttpClient();
@@ -373,7 +402,6 @@ export class Auth2 {
 
     getLoginChoice() {
         let httpClient = new HttpClient();
-        // console.error('fetching with', token);
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
