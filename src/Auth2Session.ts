@@ -147,8 +147,8 @@ export class Auth2Session {
         return this.auth2Client.getTokens(this.getToken());
     }
 
-    getIntrospection() : Promise<any> {
-        return this.auth2Client.getIntrospection(this.getToken());
+    getTokenInfo() : Promise<any> {
+        return this.auth2Client.getTokenInfo(this.getToken());
     }
 
     getLoginCoice() : Promise<any> {
@@ -181,7 +181,7 @@ export class Auth2Session {
 
     logout() : Promise<any> {
         let that = this;
-        return this.getIntrospection()
+        return this.getTokenInfo()
             .then(function (tokenInfo) {
                 return that.auth2Client.revokeToken(that.getToken(), tokenInfo.id);
             })
@@ -287,7 +287,7 @@ export class Auth2Session {
             if (!cookieToken) {
                 return;
             }
-            return this.auth2Client.getIntrospection(cookieToken)
+            return this.auth2Client.getTokenInfo(cookieToken)
                 .then((tokenInfo) => {
                     // TODO detect invalidated token...
                     this.session = {
@@ -356,7 +356,8 @@ export class Auth2Session {
     setSessionCookie(token : string, expiration: number) {
         let sessionCookie = new Cookie(this.cookieName)
             .setValue(token)
-            .setPath('/');
+            .setPath('/')
+            .setSecure(true);
 
         if (this.isSessionPersistent()) {
             sessionCookie.setExpires(new Date(expiration).toUTCString());

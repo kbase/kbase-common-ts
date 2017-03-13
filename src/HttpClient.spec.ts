@@ -67,8 +67,7 @@ describe('Basic Test', () => {
                 return null;
             })
             .catch(TimeoutError, (err) => {
-                console.error('got timeout elapsed', err.elapsed);
-                expect(err.elapsed).toBeGreaterThan(1000);
+                expect(err.elapsed).toBeGreaterThanOrEqual(1000);
                 done();
                 return null;
             })
@@ -82,9 +81,10 @@ describe('Basic Test', () => {
         let client = new HttpClient();
         client.request({
             method: 'GET',
-            url: 'http://localhost:8098'
+            url: 'http://localhostx:8098'
         })
             .then((result) => {
+                console.warn('RESULT', result);
                 done.fail('Should have received a GeneralError');
                 return null;
             })
@@ -96,6 +96,27 @@ describe('Basic Test', () => {
                 done.fail('Did not get a general error: ' + err.name);  
                 return null;
             });
+    });
+    it('Get a web page and abort the request', (done) => {
+        let client = new HttpClient();
+        var requestPromise = client.request({
+            method: 'GET',
+            url: 'http://localhost:8099/wait/2000'
+        })
+            .then((result) => {
+                expect(result.status).toEqual(400);
+                done();
+                return null;
+            })
+            .catch((err) => {
+                console.error('error', err);
+                done.fail(err);
+            })
+            .finally(() => {
+                console.warn('really???');
+                done();
+            });
+        requestPromise.cancel();
     });
   
 });

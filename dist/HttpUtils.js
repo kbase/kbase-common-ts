@@ -1,16 +1,12 @@
 define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var HttpQueryField = (function () {
-        function HttpQueryField(key, value) {
-            this.key = key;
-            this.value = value;
-        }
-        return HttpQueryField;
-    }());
     var HttpQuery = (function () {
         function HttpQuery(map) {
             this.queryMap = {};
+            if (typeof map === 'undefined') {
+                map = {};
+            }
             this.queryMap = map;
         }
         HttpQuery.prototype.addField = function (key, value) {

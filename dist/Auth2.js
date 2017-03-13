@@ -1,8 +1,18 @@
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (require, exports, Cookie_1, Html_1, HttpClient_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var endpoints = {
-        introspect: 'api/V2/token',
+        tokenInfo: 'api/V2/token',
         profile: 'api/V2/me',
         loginStart: 'login/start',
         logout: 'logout',
@@ -16,6 +26,18 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         tokens: 'tokens',
         tokensRevoke: 'tokens/revoke'
     };
+    var AuthError = (function (_super) {
+        __extends(AuthError, _super);
+        function AuthError(errorInfo) {
+            var _this = _super.call(this, errorInfo.message) || this;
+            _this.code = errorInfo.code;
+            _this.message = errorInfo.message;
+            _this.detail = errorInfo.detail;
+            return _this;
+        }
+        return AuthError;
+    }(Error));
+    exports.AuthError = AuthError;
     var Auth2 = (function () {
         function Auth2(config) {
             this.config = config;
@@ -95,7 +117,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         Auth2.prototype.removeLink = function (token, config) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
-                method: 'POST',
+                method: 'DELETE',
                 withCredentials: true,
                 header: {
                     Authorization: token,
@@ -144,31 +166,57 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.getIntrospection = function (token) {
+        Auth2.prototype.getTokenInfo = function (token) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
-                url: this.config.baseUrl + '/' + endpoints.introspect,
+                url: this.makePath([endpoints.tokenInfo]),
+                withCredentials: true,
                 header: {
                     Authorization: token
                 }
             })
                 .then(function (result) {
+                var response;
+                try {
+                    response = JSON.parse(result.response);
+                }
+                catch (ex) {
+                    throw new AuthError({
+                        code: 'json-parse-error',
+                        message: ex.message,
+                        detail: 'An unexpected error occurred parsing the request response as JSON.'
+                    });
+                }
+                if (result.status === 200) {
+                    return response;
+                }
+                var error = response;
                 switch (result.status) {
-                    case 200:
-                        return JSON.parse(result.response);
                     case 401:
-                        console.error('Error in getIntrospection', result);
-                        var errorData = JSON.parse(result.response).error;
-                        console.error('Error in getIntrospection', errorData);
-                        switch (errorData.appCode) {
-                            case 10011:
-                                throw new Error(errorData.appError);
-                            default:
-                                throw new Error('Unexpected error: ' + errorData.appError);
-                        }
+                        throw new AuthError({
+                            code: String(error.appCode),
+                            message: error.appError,
+                            detail: 'An authorization error occurred'
+                        });
+                    case 400:
+                        throw new AuthError({
+                            code: 'client-error',
+                            message: error.appError,
+                            detail: 'An unexpected client error occurred'
+                        });
+                    case 500:
+                        throw new AuthError({
+                            code: 'server-error',
+                            message: error.appError,
+                            detail: 'An unexpected server error occurred'
+                        });
                     default:
-                        throw new Error('Unexpected error: ' + errorData.appError);
+                        throw new AuthError({
+                            code: 'unexpected-error',
+                            message: error.appError,
+                            detail: 'An unexpected error occurred'
+                        });
                 }
             });
         };
@@ -193,12 +241,15 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
+        Auth2.prototype.makePath = function (path) {
+            return [this.config.baseUrl].concat(path).join('/');
+        };
         Auth2.prototype.getTokens = function (token) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.tokens,
+                url: this.makePath([endpoints.tokens]),
                 header: {
                     Authorization: token,
                     Accept: 'application/json'
@@ -227,7 +278,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.loginChoice,
+                url: this.makePath([endpoints.loginChoice]),
                 header: {
                     Accept: 'application/json'
                 }
@@ -238,26 +289,22 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                     data = JSON.parse(result.response);
                 }
                 catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    };
+                    throw new AuthError({
+                        code: 'parse',
+                        message: 'Error parsing response',
+                        detail: ex.message
+                    });
                 }
                 switch (result.status) {
                     case 200:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
+                        return data;
                     default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        };
+                        console.error('ERROR fix me', result);
+                        throw new AuthError({
+                            code: '?',
+                            message: 'some message',
+                            detail: 'some detail'
+                        });
                 }
             });
         };

@@ -1,12 +1,12 @@
-class HttpQueryField {
-    key: string;
-    value: string;
+// class HttpQueryField {
+//     key: string;
+//     value: string;
 
-    constructor(key: string, value: string) {
-        this.key = key;
-        this.value = value;
-    }
-}
+//     constructor(key: string, value: string) {
+//         this.key = key;
+//         this.value = value;
+//     }
+// }
 
 export type QueryMap = {[key:string]: string};
 
@@ -14,7 +14,10 @@ export class HttpQuery {
 
     queryMap : QueryMap = {};
 
-    constructor(map : QueryMap) {
+    constructor(map?: QueryMap) {
+        if (typeof map === 'undefined') {
+            map = <QueryMap>{};
+        }
         this.queryMap = map;
     }
 

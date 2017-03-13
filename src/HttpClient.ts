@@ -2,6 +2,10 @@ import {HttpQuery, QueryMap} from './HttpUtils';
 
 import * as Promise from 'bluebird';
 
+Promise.config({
+    cancellation: true
+});
+
 type HttpHeader = {[key: string] : string};
 
 // interface HttpHeaderField {
@@ -33,7 +37,6 @@ export class TimeoutError extends Error {
         if (this.message) {
             return this.message;
         }
-        return 'Timeout Error';
     }
 }
 
@@ -114,7 +117,7 @@ export class HttpClient {
     request(options: RequestOptions) : Promise<any> {
         let startTime = new Date().getTime();
         let that = this;
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject, onCancel) => {
             let xhr = new XMLHttpRequest();
             xhr.onload = () => {
                 resolve(<Response>{
@@ -153,13 +156,36 @@ export class HttpClient {
 
             try {
                 if (options.header) {
-                    Object.keys(options.header).forEach((key) => {
-                        xhr.setRequestHeader(key, options.header[key]);
+                    Object.keys(options.header)
+                    .filter((key) => {
+                        if (options.header[key] === undefined ||
+                            options.header[key] === null) {
+                            return false;
+                        }
+                        return true;
+                    })
+                    .forEach((key) => {
+                        // normalize value?
+                        var stringValue = (function (value) {
+                            switch (typeof value) {
+                            case 'string': return value;
+                            case 'number': return String(value);
+                            case 'boolean': return String(value);
+                            default:
+                                throw new Error('Invalid type for header value: ' + typeof value);
+                            }
+                        }(options.header[key]));
+                        xhr.setRequestHeader(key, stringValue);
                     });
                 }
 
                 if (typeof options.data === 'string') {
                     xhr.send(options.data);
+                    if (onCancel) {
+                        onCancel(() => {
+                            xhr.abort();
+                        });
+                    }
                 } else if (options.data instanceof Array) {
                     xhr.send(new Uint8Array(options.data)); 
                 } else if (typeof options.data === 'undefined') {
@@ -172,9 +198,6 @@ export class HttpClient {
             } catch (ex) {
                 reject(new GeneralError('Error sending data in request', xhr));
             }
-
         });
-
     }
-
 }

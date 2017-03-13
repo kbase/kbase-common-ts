@@ -3,24 +3,25 @@ import {Html, AttributeMap} from './Html';
 describe('Unit testing of html builder', () => {
     it('Should build a simple query of one field', () => {
         let html = new Html();
-
-        let div = html.tag('div');
+        let tag = html.tagMaker();
+        let div = tag('div');
         let result = div({}, 'a div tag');
 
         expect(result).toEqual('<div>a div tag</div>');        
     });
     it('Should build a simple query of one field one attribute', () => {
         let html = new Html();
-
-        let div = html.tag('div');
+        let tag = html.tagMaker();
+        let div = tag('div');
         let result = div({class: 'hi'}, 'a div tag');
 
         expect(result).toEqual('<div class="hi">a div tag</div>');        
     });
     it('Should build a simple query of one field one attribute, convert attrib key camelCase to hyphen', () => {
         let html = new Html();
+        let tag = html.tagMaker();
 
-        let div = html.tag('div');
+        let div = tag('div');
         let result = div({myAttrib: 'hi'}, 'a div tag');
 
         expect(result).toEqual('<div my-attrib="hi">a div tag</div>');        
@@ -28,8 +29,9 @@ describe('Unit testing of html builder', () => {
 
     it('Should build a simple query of one field multiple attributes', () => {
         let html = new Html();
+        let tag = html.tagMaker();
 
-        let div = html.tag('div');
+        let div = tag('div');
         let result = div({
             class: 'hi',
             name: 'alfred'
@@ -40,8 +42,9 @@ describe('Unit testing of html builder', () => {
 
     it('Should build a simple query of one field style nested attribute', () => {
         let html = new Html();
+        let tag = html.tagMaker();
 
-        let div = html.tag('div');
+        let div = tag('div');
         let result = div({
             style: {
                 width: '100px'
@@ -53,9 +56,10 @@ describe('Unit testing of html builder', () => {
 
     it('Should build a more complex structure', () => {
         let html = new Html();
+        let tag = html.tagMaker();
 
-        let div = html.tag('div');
-        let span = html.tag('span');
+        let div = tag('div');
+        let span = tag('span');
         let result = div({
             style: {
                 width: '100px'

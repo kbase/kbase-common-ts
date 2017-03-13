@@ -11,6 +11,9 @@ var __extends = (this && this.__extends) || (function () {
 define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exports, HttpUtils_1, Promise) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    Promise.config({
+        cancellation: true
+    });
     var TimeoutError = (function (_super) {
         __extends(TimeoutError, _super);
         function TimeoutError(timeout, elapsed, message, xhr) {
@@ -27,7 +30,6 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
             if (this.message) {
                 return this.message;
             }
-            return 'Timeout Error';
         };
         return TimeoutError;
     }(Error));
@@ -86,7 +88,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         HttpClient.prototype.request = function (options) {
             var startTime = new Date().getTime();
             var that = this;
-            return new Promise(function (resolve, reject) {
+            return new Promise(function (resolve, reject, onCancel) {
                 var xhr = new XMLHttpRequest();
                 xhr.onload = function () {
                     resolve({
@@ -121,12 +123,34 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 xhr.withCredentials = options.withCredentials || false;
                 try {
                     if (options.header) {
-                        Object.keys(options.header).forEach(function (key) {
-                            xhr.setRequestHeader(key, options.header[key]);
+                        Object.keys(options.header)
+                            .filter(function (key) {
+                            if (options.header[key] === undefined ||
+                                options.header[key] === null) {
+                                return false;
+                            }
+                            return true;
+                        })
+                            .forEach(function (key) {
+                            var stringValue = (function (value) {
+                                switch (typeof value) {
+                                    case 'string': return value;
+                                    case 'number': return String(value);
+                                    case 'boolean': return String(value);
+                                    default:
+                                        throw new Error('Invalid type for header value: ' + typeof value);
+                                }
+                            }(options.header[key]));
+                            xhr.setRequestHeader(key, stringValue);
                         });
                     }
                     if (typeof options.data === 'string') {
                         xhr.send(options.data);
+                        if (onCancel) {
+                            onCancel(function () {
+                                xhr.abort();
+                            });
+                        }
                     }
                     else if (options.data instanceof Array) {
                         xhr.send(new Uint8Array(options.data));

@@ -6,4 +6,12 @@ describe('Utils', () => {
         let result = utils.genId();
         expect(typeof result).toEqual('string');        
     });
+
+     it('generates a random string many times', () => {
+        let result;
+        for (var i = 0; i < 10000; i += 1) {
+             result = utils.genId();
+        }
+        expect(typeof result).toEqual('string');        
+    });
 });

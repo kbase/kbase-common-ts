@@ -23,7 +23,7 @@ export interface AuthConfig {
 
 
 interface AuthEndpoints {
-    introspect: string,
+    tokenInfo: string,
     profile: string,
     loginStart: string,
     loginChoice: string,
@@ -39,7 +39,7 @@ interface AuthEndpoints {
 }
 
 const endpoints: AuthEndpoints = {
-    introspect: 'api/V2/token',
+    tokenInfo: 'api/V2/token',
     profile: 'api/V2/me',
     loginStart: 'login/start',
     logout: 'logout',
@@ -118,9 +118,66 @@ export interface ILoginCreateResponse {
 }
 
 export interface Tokens {
-    tokens: Array<any>,
+    tokens: Array<ITokenInfo>,
     dev: boolean,
     serv: boolean
+}
+
+export interface CreateChoice {
+    id: string,
+    usernamesugg: string,
+    prov_username: string,
+    prov_fullname: string,
+    prov_email: string
+}
+
+export interface LoginChoice {
+    id: string,
+    prov_usernames: Array<string>
+    username: string,
+    loginallowed: boolean,
+    disabled: boolean,
+    adminonly: boolean,
+}
+
+export interface LoginChoice {
+    createurl: string,
+    pickurl: string,
+    provider: string
+    redirecturl: string,
+    creationallowed: string,
+    create: Array<CreateChoice>,
+    login: Array<LoginChoice>,
+    token?: string,
+    logged_in: boolean,
+    // TODO: this is in here twice, bug.
+    redirect?: string
+}
+
+export interface Auth2ApiErrorInfo {
+    appCode: number,
+    appError: string
+}
+
+export interface AuthErrorInfo {
+    code: string,
+    message: string,
+    detail: string
+}
+
+export class AuthError extends Error {
+    code : string;
+    message: string;
+    detail: string;
+    constructor(errorInfo: AuthErrorInfo) {
+        super(errorInfo.message);
+
+        this.code = errorInfo.code;
+        this.message = errorInfo.message;
+        this.detail = errorInfo.detail;
+
+    }
+
 }
 
 export class Auth2 {
@@ -264,11 +321,15 @@ export class Auth2 {
     //         });
     // }
 
+    /*
+    POST /me/unlink/:id
+    Authorization :token
+    */
     removeLink(token: string, config: UnlinkOptions) : Promise<any> {
         let httpClient = new HttpClient();
 
         return httpClient.request({
-            method: 'POST',
+            method: 'DELETE',
             withCredentials: true,
             header: {
                 Authorization: token,
@@ -319,34 +380,64 @@ export class Auth2 {
                         };
                 }
             });
-    }
-
-    getIntrospection(token: string): Promise<ITokenInfo> {
+    } 
+ 
+    getTokenInfo(token: string): Promise<ITokenInfo> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
-            url: this.config.baseUrl + '/' + endpoints.introspect,
+            url: this.makePath([endpoints.tokenInfo]),
+            withCredentials: true,
             header: {
                 Authorization: token
             }
         })
             .then((result: Response) => {
-                switch (result.status) {
-                    case 200:
-                        return <ITokenInfo>JSON.parse(result.response);
-                    case 401:
-                        console.error('Error in getIntrospection', result);
-                        let errorData = JSON.parse(result.response).error;
-                        console.error('Error in getIntrospection', errorData);
-                        switch (errorData.appCode) {
-                            case 10011:
-                                throw new Error(errorData.appError);
-                            default:
-                                throw new Error('Unexpected error: ' + errorData.appError);
-                        }
-                    default:
-                        throw new Error('Unexpected error: ' + errorData.appError);
+                var response;
+                try {
+                    response = JSON.parse(result.response)
+                } catch (ex) {
+                    throw new AuthError({
+                        code: 'json-parse-error',
+                        message: ex.message,
+                        detail: 'An unexpected error occurred parsing the request response as JSON.'
+                    });  
                 }
+                
+                if (result.status === 200) {
+                    return <ITokenInfo>response;
+                }
+
+                var error = <Auth2ApiErrorInfo>response;
+
+                switch (result.status) {
+                    case 401: 
+                        throw new AuthError({
+                            code: String(error.appCode),
+                            message: error.appError,
+                            detail: 'An authorization error occurred'
+                        });
+                    case 400:
+                        throw new AuthError({
+                            code: 'client-error',
+                            message: error.appError,
+                            detail: 'An unexpected client error occurred'
+                        });
+                    case 500:
+                        throw new AuthError({
+                            code: 'server-error',
+                            message: error.appError,
+                            detail: 'An unexpected server error occurred'
+                        });
+                    default:
+                        throw new AuthError({
+                            code: 'unexpected-error',
+                            message: error.appError,
+                            detail: 'An unexpected error occurred'
+                        });                        
+                }
+                
+
             });
     }
 
@@ -371,12 +462,16 @@ export class Auth2 {
             });
     }
 
+    makePath(path: Array<string>) : string {
+        return [this.config.baseUrl].concat(path).join('/');
+    }
+
     getTokens(token: string): Promise<Tokens> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: this.config.baseUrl + '/' + endpoints.tokens,
+            url: this.makePath([endpoints.tokens]),
             header: {
                 Authorization: token,
                 Accept: 'application/json'
@@ -400,12 +495,14 @@ export class Auth2 {
             });
     }
 
-    getLoginChoice() {
+    // Note that the auth2 service will have set cookies 
+    // in the browser which are implicitly sent.
+    getLoginChoice() : Promise<LoginChoice> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: this.config.baseUrl + '/' + endpoints.loginChoice,
+            url: this.makePath([endpoints.loginChoice]),
             header: {
                 Accept: 'application/json'
             }
@@ -413,28 +510,36 @@ export class Auth2 {
             .then(function (result) {
                 var data;
                 try {
-                    data = JSON.parse(result.response);
+                    data = <LoginChoice>JSON.parse(result.response);
                 } catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    }
+                    throw new AuthError({
+                        code: 'parse', 
+                        message: 'Error parsing response', 
+                        detail: ex.message
+                    });
+                    // return {
+                    //     status: 'error',
+                    //     data: {
+                    //         message: 'Error parsing response',
+                    //         detail: 'ex.message'
+                    //     }
+                    // }
                 }
                 switch (result.status) {
                     case 200:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
+                        return data;
                     default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        }
+                        console.error('ERROR fix me', result);
+                        throw new AuthError({
+                            code: '?',
+                            message: 'some message',
+                            detail: 'some detail'
+                        });
+                        // return {
+                        //     status: 'error',
+                        //     code: result.status,
+                        //     data: data
+                        // }
                 }
             });
     }

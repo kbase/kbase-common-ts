@@ -93,8 +93,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.getTokens = function () {
             return this.auth2Client.getTokens(this.getToken());
         };
-        Auth2Session.prototype.getIntrospection = function () {
-            return this.auth2Client.getIntrospection(this.getToken());
+        Auth2Session.prototype.getTokenInfo = function () {
+            return this.auth2Client.getTokenInfo(this.getToken());
         };
         Auth2Session.prototype.getLoginCoice = function () {
             return this.auth2Client.getLoginChoice();
@@ -120,7 +120,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         };
         Auth2Session.prototype.logout = function () {
             var that = this;
-            return this.getIntrospection()
+            return this.getTokenInfo()
                 .then(function (tokenInfo) {
                 return that.auth2Client.revokeToken(that.getToken(), tokenInfo.id);
             })
@@ -212,7 +212,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                 if (!cookieToken) {
                     return;
                 }
-                return _this.auth2Client.getIntrospection(cookieToken)
+                return _this.auth2Client.getTokenInfo(cookieToken)
                     .then(function (tokenInfo) {
                     _this.session = {
                         token: cookieToken,
@@ -273,7 +273,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
             var _this = this;
             var sessionCookie = new Cookie_1.Cookie(this.cookieName)
                 .setValue(token)
-                .setPath('/');
+                .setPath('/')
+                .setSecure(true);
             if (this.isSessionPersistent()) {
                 sessionCookie.setExpires(new Date(expiration).toUTCString());
             }
