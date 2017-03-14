@@ -179,15 +179,26 @@ export class Auth2Session {
             });
     }         
 
-    logout() : Promise<any> {
-        let that = this;
+    logout(tokenId?: string) : Promise<any> {
         return this.getTokenInfo()
-            .then(function (tokenInfo) {
-                return that.auth2Client.revokeToken(that.getToken(), tokenInfo.id);
+            .then((tokenInfo) => {
+                var currentTokenId = this.session ? this.session.tokenInfo.id : null;
+                if (tokenId && tokenId !== currentTokenId) {
+                    throw new Error('Supplied token id does not match the current token id, will not log out');
+                }
+                return this.auth2Client.revokeToken(this.getToken(), tokenInfo.id);
             })
             .then(() => {
-                that.removeSessionCookie();
-                return that.evaluateSession();
+                this.removeSessionCookie();
+                return this.evaluateSession();
+            });
+    }
+
+    revokeToken(tokenId: string) : Promise<any> {
+        let that = this;
+        return this.getTokenInfo()
+            .then((tokenInfo) => {
+                return this.auth2Client.revokeToken(this.getToken(), tokenId);
             });
     }
 

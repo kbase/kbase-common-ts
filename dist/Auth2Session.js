@@ -118,15 +118,27 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                 return result;
             });
         };
-        Auth2Session.prototype.logout = function () {
+        Auth2Session.prototype.logout = function (tokenId) {
+            var _this = this;
+            return this.getTokenInfo()
+                .then(function (tokenInfo) {
+                var currentTokenId = _this.session ? _this.session.tokenInfo.id : null;
+                if (tokenId && tokenId !== currentTokenId) {
+                    throw new Error('Supplied token id does not match the current token id, will not log out');
+                }
+                return _this.auth2Client.revokeToken(_this.getToken(), tokenInfo.id);
+            })
+                .then(function () {
+                _this.removeSessionCookie();
+                return _this.evaluateSession();
+            });
+        };
+        Auth2Session.prototype.revokeToken = function (tokenId) {
+            var _this = this;
             var that = this;
             return this.getTokenInfo()
                 .then(function (tokenInfo) {
-                return that.auth2Client.revokeToken(that.getToken(), tokenInfo.id);
-            })
-                .then(function () {
-                that.removeSessionCookie();
-                return that.evaluateSession();
+                return _this.auth2Client.revokeToken(_this.getToken(), tokenId);
             });
         };
         Auth2Session.prototype.onChange = function (listener) {
