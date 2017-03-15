@@ -329,7 +329,7 @@ export class Auth2 {
         let httpClient = new HttpClient();
 
         return httpClient.request({
-            method: 'DELETE',
+            method: 'POST',
             withCredentials: true,
             header: {
                 Authorization: token,
