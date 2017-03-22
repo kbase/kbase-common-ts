@@ -1,45 +1,11 @@
 define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var AttributeMap = (function () {
-        function AttributeMap() {
-            this.map = {};
-        }
-        AttributeMap.prototype.addItem = function (key, value) {
-            this.map[key] = value;
-        };
-        AttributeMap.prototype.removeItem = function (key) {
-            delete this.map[key];
-        };
-        AttributeMap.prototype.toString = function () {
-            var that = this;
-            return Object.keys(this.map).map(function (key) {
-                var value = that.map[key];
-                var attribName = key.replace(/[A-Z]/g, function (m) {
-                    return '-' + m.toLowerCase();
-                });
-            }).join(' ');
-        };
-        return AttributeMap;
-    }());
-    exports.AttributeMap = AttributeMap;
     ;
     var Html = (function () {
         function Html() {
             this.genIdSerial = 0;
         }
-        Html.prototype.isArray = function (value) {
-            if (value instanceof Array) {
-                return true;
-            }
-            return false;
-        };
-        Html.prototype.isString = function (value) {
-            if (typeof value === 'string') {
-                return true;
-            }
-            return false;
-        };
         Html.prototype.renderChildren = function (children) {
             if (children === null) {
                 return '';
@@ -86,6 +52,35 @@ define(["require", "exports"], function (require, exports) {
                 return [attribName, attribValue].join('=');
             }).join(' ');
         };
+        Html.prototype.mergeAttribs = function (a, b) {
+            if (typeof a === 'undefined') {
+                a = {};
+            }
+            var merger = function (x, y) {
+                if (typeof y === 'object' && y !== null) {
+                    Object.keys(y).forEach(function (key) {
+                        var xval = x[key];
+                        var yval = y[key];
+                        if (typeof xval === 'undefined') {
+                            x[key] = yval;
+                        }
+                        else if (typeof xval === 'object' && xval !== null) {
+                            if (typeof yval === 'object' && yval !== null) {
+                                merger(xval, yval);
+                            }
+                            else {
+                                x[key] = yval;
+                            }
+                        }
+                        else {
+                            x[key] = yval;
+                        }
+                    });
+                }
+            };
+            merger(a, b);
+            return a;
+        };
         Html.prototype.tagMaker = function () {
             var _this = this;
             var isHtmlNode = function (val) {
@@ -94,37 +89,49 @@ define(["require", "exports"], function (require, exports) {
             var isAttribMap = function (val) {
                 return true;
             };
-            var maker = function (name) {
+            var notEmpty = function (x) {
+                if ((typeof x === 'undefined') ||
+                    (x === null) ||
+                    x.length === 0) {
+                    return false;
+                }
+                return true;
+            };
+            var maker = function (name, defaultAttribs) {
+                if (defaultAttribs === void 0) { defaultAttribs = {}; }
                 var tagFun = function (attribs, children) {
                     var node = '<';
-                    if (typeof children === 'undefined' &&
-                        typeof attribs === 'object' &&
-                        !(attribs instanceof Array) &&
-                        isAttribMap(attribs)) {
-                        if (Object.keys(attribs).length === 0) {
-                            node += name;
+                    if (typeof children === 'undefined') {
+                        if (typeof attribs === 'object' &&
+                            !(attribs instanceof Array) &&
+                            isAttribMap(attribs)) {
+                            if (Object.keys(attribs).length === 0) {
+                                node += name;
+                            }
+                            else {
+                                var tagAttribs = _this.attribsToString(_this.mergeAttribs(attribs, defaultAttribs));
+                                node += [name, tagAttribs].filter(notEmpty).join(' ');
+                            }
+                            node += '>';
                         }
-                        else {
-                            var tagAttribs = _this.attribsToString(attribs);
-                            node += [name, tagAttribs].join(' ');
+                        else if (typeof attribs === 'undefined') {
+                            var tagAttribs = _this.attribsToString(defaultAttribs);
+                            node += [name, tagAttribs].filter(notEmpty).join(' ');
+                            node += '>';
                         }
-                        node += '>';
-                    }
-                    else if (typeof children === 'undefined' &&
-                        typeof attribs === 'undefined') {
-                        node += name + '>';
-                    }
-                    else if (typeof children === 'undefined' &&
-                        isHtmlNode(attribs)) {
-                        node += name + '>' + _this.renderChildren(attribs);
+                        else if (isHtmlNode(attribs)) {
+                            var tagAttribs = _this.attribsToString(defaultAttribs);
+                            node += [name, tagAttribs].filter(notEmpty).join(' ');
+                            node += '>' + _this.renderChildren(attribs);
+                        }
                     }
                     else if (isAttribMap(attribs) && isHtmlNode(children)) {
                         if (Object.keys(attribs).length === 0) {
                             node += name;
                         }
                         else {
-                            var tagAttribs = _this.attribsToString(attribs);
-                            node += [name, tagAttribs].join(' ');
+                            var tagAttribs = _this.attribsToString(_this.mergeAttribs(attribs, defaultAttribs));
+                            node += [name, tagAttribs].filter(notEmpty).join(' ');
                         }
                         node += '>' + _this.renderChildren(children);
                     }

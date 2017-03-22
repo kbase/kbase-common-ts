@@ -45,9 +45,13 @@ define(["require", "exports"], function (require, exports) {
                 that.processQueue();
             }, this.queuePauseTime);
         };
-        AsyncQueue.prototype.stop = function () {
-            window.clearTimeout(this.timer);
-            this.timer = null;
+        AsyncQueue.prototype.stop = function (fun) {
+            var _this = this;
+            this.addItem(function () {
+                window.clearTimeout(_this.timer);
+                _this.timer = null;
+                fun();
+            });
         };
         AsyncQueue.prototype.addItem = function (run, error) {
             this.itemId += 1;

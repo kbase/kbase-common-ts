@@ -65,12 +65,12 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.getClient = function () {
             return this.auth2Client;
         };
-        Auth2Session.prototype.loginPick = function (token, identityId) {
-            var that = this;
-            return that.auth2Client.loginPick(token, identityId)
+        Auth2Session.prototype.loginPick = function (arg) {
+            var _this = this;
+            return this.auth2Client.loginPick(arg)
                 .then(function (result) {
-                that.setSessionCookie(result.data.token.token, result.data.token.expires);
-                return that.evaluateSession()
+                _this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                return _this.evaluateSession()
                     .then(function () {
                     return result;
                 });
@@ -87,11 +87,14 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                 });
             });
         };
-        Auth2Session.prototype.getAccount = function () {
-            return this.auth2Client.getAccount(this.getToken());
+        Auth2Session.prototype.getMe = function () {
+            return this.auth2Client.getMe(this.getToken());
         };
         Auth2Session.prototype.getTokens = function () {
             return this.auth2Client.getTokens(this.getToken());
+        };
+        Auth2Session.prototype.createToken = function (data) {
+            return this.auth2Client.createToken(this.getToken(), data);
         };
         Auth2Session.prototype.getTokenInfo = function () {
             return this.auth2Client.getTokenInfo(this.getToken());
@@ -101,7 +104,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         };
         Auth2Session.prototype.login = function (config) {
             this.setLastProvider(config.provider);
-            return this.auth2Client.login(config);
+            this.auth2Client.loginStartBrowser(config);
         };
         Auth2Session.prototype.link = function (config) {
             return this.auth2Client.linkPost(config);
@@ -321,21 +324,21 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.setSessionPersistent = function (isPersistent) {
             var cookie = new Cookie_1.Cookie('sessionpersist')
                 .setPath('/');
-            if (isPersistent) {
-                this.cookieManager.setItem(cookie
-                    .setValue('t')
-                    .setMaxAge(Infinity));
-            }
-            else {
-                this.cookieManager.removeItem(cookie);
-            }
+            this.cookieManager.setItem(cookie
+                .setValue(isPersistent ? 't' : 'f')
+                .setMaxAge(Infinity));
         };
         Auth2Session.prototype.isSessionPersistent = function () {
             var persist = this.cookieManager.getItem('sessionpersist');
             if (persist === 't') {
                 return true;
             }
-            return false;
+            else if (persist === 'f') {
+                return false;
+            }
+            else {
+                return true;
+            }
         };
         return Auth2Session;
     }());

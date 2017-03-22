@@ -14,6 +14,13 @@ describe('Unit testing of http query builder', () => {
         let result = query.toString();
         expect(result).toEqual('field1=value1&field2=value2');        
     });
+     it('Should build a simple query of two fields using the ', () => {
+        let query = new HttpQuery();
+        query.addField('field1', 'value1');
+        query.addField('field2', 'value2');
+        let result = query.toString();
+        expect(result).toEqual('field1=value1&field2=value2');        
+    });
     it('Should build a simple query of two fields and then delete one', () => {
         let query = new HttpQuery();
         query.addField('field1', 'value1');
