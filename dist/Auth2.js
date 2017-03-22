@@ -329,7 +329,6 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             })
                 .then(function (result) {
-                console.log('result', result);
                 try {
                     return JSON.parse(result.response);
                 }

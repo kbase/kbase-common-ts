@@ -83,7 +83,7 @@ export interface UnlinkOptions {
 
 export interface UserPolicy {
     id: string,
-    agreed: number
+    agreed_on: number
 }
 
 export interface ILoginCreateOptions {
@@ -633,7 +633,6 @@ export class Auth2 {
             }
         })
             .then(function (result) {
-                console.log('result', result);
                 try {
                     return JSON.parse(result.response);
                 } catch (ex) {
