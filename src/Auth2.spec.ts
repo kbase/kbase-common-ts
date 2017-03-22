@@ -1,4 +1,5 @@
 import { Auth2 } from './Auth2';
+import { HttpClient } from './HttpClient'
 
 function makeClient() {
     return new Auth2({
@@ -59,20 +60,31 @@ describe('Auth2', () => {
         expect(providers).toEqual(expected);
     });
 
-    it('Gets the token info for a valid token', (done) => {
+     it('Get a provider record', () => {
         let auth2 = makeClient();
-        let token = 'TZZEWGHJ6BT7ECOBJZUFHJSRZEZ7SBAK';
-        auth2.getTokenInfo(token)
-            .then(function (info) {
-                expect(true).toEqual(true);
-                done();
-                return null;
-            })
-            .catch(function (err) {
-                done.fail(err.message);
-                return null;
-            });
+
+        let provider = auth2.getProvider('Globus');
+        let expected = {
+            id: 'Globus',
+            label: 'Globus'
+        };
+        expect(provider).toEqual(expected);
     });
+
+    // it('Gets the token info for a valid token', (done) => {
+    //     let auth2 = makeClient();
+    //     let token = 'TZZEWGHJ6BT7ECOBJZUFHJSRZEZ7SBAK';
+    //     auth2.getTokenInfo(token)
+    //         .then(function (info) {
+    //             expect(true).toEqual(true);
+    //             done();
+    //             return null;
+    //         })
+    //         .catch(function (err) {
+    //             done.fail(err.message);
+    //             return null;
+    //         });
+    // });
 
     it('Gets the token info for a valid token (mock)', (done) => {
         let auth2 = makeMockClient();
@@ -84,7 +96,8 @@ describe('Auth2', () => {
                 done();
                 return null;
             })
-            .catch(function (err) {                
+            .catch(function (err) {
+                console.error('ERR', err);
                 done.fail(err.message);
                 return null;
             });
@@ -164,10 +177,12 @@ describe('Auth2', () => {
             });
     });
 
+    // REMOVE LINK
+
     it('Unlinks an identity from a token (mock)', (done) => {
         let auth2 = makeMockClient();
 
-        auth2.removeLink('VALIDTOKEN', {
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
             identityId: 'VALIDID'
         })
             .then(function (info) {
@@ -177,6 +192,301 @@ describe('Auth2', () => {
             .catch(function (err) {
                 done.fail(err.message);
                 return null;
+            }); 
+    });
+
+    it('Unlinks an identity with a bad token (mock)', (done) => {
+        let auth2 = makeMockClient();
+
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234560', {
+            identityId: 'VALIDID'
+        })
+            .then(function (info) {
+                done.fail('Should have failed');
+                return null;
+            })
+            .catch(function (err) {
+                expect(err.code).toEqual('10011');
+                done();
+                return null;
             });
     });
+
+    it('Unlinks an identity with a token not linked to any account (mock)', (done) => {
+        let auth2 = makeMockClient();
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234566', {
+            identityId: 'VALIDID'
+        })
+            .then(function (info) {
+                done.fail('Should have failed');
+                return null;
+            })
+            .catch(function (err) {
+                expect(err.code).toEqual('50000');
+                done();
+                return null;
+            });
+    });
+
+    it('Unlinks an identity with a token linked to a disabled account (mock)', (done) => {
+        let auth2 = makeMockClient();
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234565', {
+            identityId: 'VALIDID'
+        })
+            .then(function (info) {
+                done.fail('Should have failed');
+                return null;
+            })
+            .catch(function (err) {
+                expect(err.code).toEqual('20010');
+                done();
+                return null;
+            });
+    });
+
+    it('Unlinks an identity with a bad id - not linked (mock)', (done) => {
+        let auth2 = makeMockClient();
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
+            identityId: 'NOTLINKED'
+        })
+            .then(function (info) {
+                done.fail('Should have failed');
+                return null;
+            })
+            .catch(function (err) {
+                expect(err.code).toEqual('60010');
+                done();
+                return null;
+            });
+    });
+
+    it('Unlinks an identity with a bad id - not linked (mock)', (done) => {
+        let auth2 = makeMockClient();
+        auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
+            identityId: 'LASTID'
+        })
+            .then(function (info) {
+                done.fail('Should have failed');
+                return null;
+            })
+            .catch(function (err) {
+                expect(err.code).toEqual('60010');
+                done();
+                return null;
+            });
+    });
+
+    /*
+        To ensure that test input mistakes are caught, a 400 with appCode 0 is thrown.
+    */
+    // it('Bad THROWUNEXPECTEDAPPCODE)', (done) => {
+    //     let auth2 = makeMockClient();
+    //     auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
+    //         identityId: 'THROWUNEXPECTEDAPPCODE'
+    //     })
+    //         .then(function (info) {
+    //             done.fail('Should have failed');
+    //             return null;
+    //         })
+    //         .catch(function (err) {
+    //             expect(err.code).toEqual('1');
+    //             done();
+    //             return null;
+    //         });
+    // });
+
+    // it('Unexpected status code', (done) => {
+    //     let auth2 = makeMockClient();
+    //     auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
+    //         identityId: 'THROWUNEXPECTEDSTATUS'
+    //     })
+    //         .then(function (info) {
+    //             done.fail('Should have failed');
+    //             return null;
+    //         })
+    //         .catch(function (err) {
+    //             expect(err.code).toEqual('unexpected-response-status');
+    //             done();
+    //             return null;
+    //         });
+    // });
+
+    // it('Server Error', (done) => {
+    //     let auth2 = makeMockClient();
+    //     auth2.removeLink('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', {
+    //         identityId: 'THROW500'
+    //     })
+    //         .then(function (info) {
+    //             done.fail('Should have failed');
+    //             return null;
+    //         })
+    //         .catch(function (err) {
+    //             expect(err.code).toEqual('server-error');
+    //             done();
+    //             return null;
+    //         });
+    // });
+
+    // it('Remove link - unexpected test condition', (done) => {
+    //     let auth2 = makeMockClient();
+    //     auth2.removeLink('X', {
+    //         identityId: 'X'
+    //     })
+    //         .then(function (info) {
+    //             done.fail('Should have failed');
+    //             return null;
+    //         })
+    //         .catch(function (err) {
+    //             expect(err.code).toEqual('unexpected-test-condition');
+    //             done();
+    //             return null;
+    //         });
+    // });
+
+    // Linking
+     it('Link an ext auth to an account', (done) => {
+        let auth2 = makeMockClient();
+        // a simple valid base32 string
+        let token = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let id = 'VALIDID';
+        
+        let http = new HttpClient();
+
+        let setups = [
+            ['set-cookie', 'in-process-token=VALIDTOKEN;path=/']
+        ];
+
+        http.request({
+            method: 'POST',
+            url: 'http://localhost:3000/setup',
+            withCredentials: true,
+            data: JSON.stringify(setups)
+        })
+        .then(function (result) {            
+            return auth2.linkPick(token, id)
+        })
+        .then(function (info) {
+            expect(true).toEqual(true);
+            done();
+            return null; 
+        })
+        .catch(function (err) {
+            console.error('ERR', err);
+            done.fail(err.message); 
+            return null;
+        });
+    });
+
+     // Linking
+     it('Login pick', (done) => {
+        let auth2 = makeMockClient();
+        let http = new HttpClient();
+
+        // a simple valid base32 string
+        let inProcessToken = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let id = 'VALIDID';
+        let linkall = true;
+        let policy_ids = [{
+            id: 'some-policy',
+            version: 1
+        }, {
+            id: 'another-policy',
+            version: 3
+        }];
+        let data = {
+            token: inProcessToken,
+            identityId: id,
+            linkAll: linkall,
+            agreements: policy_ids
+        }
+
+        let setups = [
+            ['set-cookie', 'in-process-token=VALIDTOKEN;path=/']
+        ];
+
+        http.request({
+            method: 'POST',
+            url: 'http://localhost:3000/setup',
+            withCredentials: true,
+            data: JSON.stringify(setups)
+        })
+        .then(function (result) {            
+            return auth2.loginPick(data);
+        })
+        .then(function (info) {
+            expect(true).toEqual(true);
+            done();
+            return null; 
+        })
+        .catch(function (err) {
+            console.error('ERR', err);
+            done.fail(err.message); 
+            return null;
+        });
+    });
+
+     it('Login pick', (done) => {
+        let auth2 = makeMockClient();
+        let http = new HttpClient();
+
+        // a simple valid base32 string
+        let inProcessToken = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234560';
+        let id = 'VALIDID';
+        let linkall = true;
+        let policy_ids = [{
+            id: 'some-policy',
+            version: 1
+        }, {
+            id: 'another-policy',
+            version: 3
+        }];
+        let data = {
+            token: inProcessToken,
+            identityId: id,
+            linkAll: linkall,
+            agreements: policy_ids
+        }
+
+        let setups = [
+            ['set-cookie', 'in-process-token=VALIDTOKEN;path=/']
+        ];
+
+        http.request({
+            method: 'POST',
+            url: 'http://localhost:3000/setup',
+            withCredentials: true,
+            data: JSON.stringify(setups)
+        })
+        .then(function (result) {            
+            return auth2.loginPick(data);
+        })
+        .then(function (info) {
+            done.fail('Should have failed');
+            return null;
+        })
+        .catch(function (err) {
+            console.error(err);
+            expect(err.code).toEqual('10011');
+            done();
+            return null;
+        });
+    });
+
+    // It isn't possible to really test the login start flow, but we can
+    // simulate a POST and the mock server will ensure that we are sending the right info.
+    it('simulates login', (done) => {
+        let auth2 = makeMockClient();
+        auth2.loginStart({
+            node: document.body,
+            provider: 'Globus',
+            redirectUrl: 'http://localhost:6666/valid/path',
+            stayLoggedIn: false
+        })
+        .then(function (result) {
+            done();
+        })
+        .catch(function (err) {
+            done.fail(err.message);
+        })
+    })
 });

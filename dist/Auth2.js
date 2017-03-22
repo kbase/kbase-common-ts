@@ -13,7 +13,8 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
     Object.defineProperty(exports, "__esModule", { value: true });
     var endpoints = {
         tokenInfo: 'api/V2/token',
-        profile: 'api/V2/me',
+        apiMe: 'api/V2/me',
+        me: 'me',
         loginStart: 'login/start',
         logout: 'logout',
         loginChoice: 'login/choice',
@@ -24,7 +25,8 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         linkPick: 'link/pick',
         linkRemove: 'me/unlink',
         tokens: 'tokens',
-        tokensRevoke: 'tokens/revoke'
+        tokensRevoke: 'tokens/revoke',
+        tokensCreate: 'tokens/create'
     };
     var AuthError = (function (_super) {
         __extends(AuthError, _super);
@@ -55,7 +57,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 return (provider.id === providerId);
             })[0];
         };
-        Auth2.prototype.login = function (config) {
+        Auth2.prototype.loginStartBrowser = function (config) {
             var html = new Html_1.Html();
             var t = html.tagMaker();
             var form = t('form');
@@ -88,6 +90,71 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             config.node.innerHTML = content;
             document.getElementById(formId).submit();
         };
+        Auth2.prototype.loginStart = function (config) {
+            var http = new HttpClient_1.HttpClient();
+            var html = new Html_1.Html();
+            var t = html.tagMaker();
+            var form = t('form');
+            var input = t('input');
+            var query = {
+                provider: config.provider,
+                redirectUrl: config.redirectUrl,
+                stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
+            };
+            return http.request({
+                method: 'POST',
+                url: [this.config.baseUrl, endpoints.loginStart].join('/'),
+                header: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                data: JSON.stringify(query)
+            })
+                .then(function (result) {
+                switch (result.status) {
+                    case 400:
+                        var error;
+                        try {
+                            error = JSON.parse(result.response);
+                        }
+                        catch (ex) {
+                            console.error(ex);
+                            throw new AuthError({
+                                code: 'decode-error',
+                                message: 'Error decoding JSON error response',
+                                detail: ex.message
+                            });
+                        }
+                        console.error(error);
+                        throw new AuthError({
+                            code: String(error.appCode),
+                            message: error.message || error.appError
+                        });
+                    case 200:
+                        try {
+                            return JSON.parse(result.response);
+                        }
+                        catch (ex) {
+                            throw new AuthError({
+                                code: 'decode-error',
+                                message: 'Error decoding JSON login start response',
+                                detail: ex.message
+                            });
+                        }
+                    default:
+                        throw new AuthError({
+                            code: 'unexpected-response-status',
+                            message: 'Unexpected response status: ' + String(result.status)
+                        });
+                }
+            })
+                .catch(function (err) {
+                throw new AuthError({
+                    code: String(err.appCode),
+                    message: err.message || err.appError
+                });
+            });
+        };
         Auth2.prototype.linkPost = function (config) {
             var html = new Html_1.Html();
             var t = html.tagMaker();
@@ -114,29 +181,59 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             config.node.innerHTML = content;
             document.getElementById(formId).submit();
         };
+        Auth2.prototype.decodeError = function (result) {
+            var error;
+            try {
+                return JSON.parse(result.response);
+            }
+            catch (ex) {
+                console.error(ex);
+                throw new AuthError({
+                    code: 'decode-error',
+                    message: 'Error decoding JSON error response',
+                    detail: ex.message
+                });
+            }
+        };
         Auth2.prototype.removeLink = function (token, config) {
+            var _this = this;
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
                 header: {
                     Authorization: token,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json'
                 },
-                url: [this.config.baseUrl, endpoints.linkRemove, config.identityId].join('/')
+                url: this.makePath([endpoints.linkRemove, config.identityId])
             })
                 .then(function (result) {
-                switch (result.status) {
-                    case 204:
-                        return {
-                            status: 'ok'
-                        };
-                    default:
-                        return {
-                            status: 'error',
-                            message: 'Unexpected response logging out',
-                            statusCode: result.status
-                        };
+                if (result.status === 204) {
+                    return;
+                }
+                else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
+                }
+                else {
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            var error = _this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
                 }
             });
         };
@@ -220,18 +317,19 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.getAccount = function (token) {
+        Auth2.prototype.getMe = function (token) {
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.profile,
+                url: this.config.baseUrl + '/' + endpoints.apiMe,
                 header: {
                     Authorization: token,
                     Accept: 'application/json'
                 }
             })
                 .then(function (result) {
+                console.log('result', result);
                 try {
                     return JSON.parse(result.response);
                 }
@@ -242,6 +340,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             });
         };
         Auth2.prototype.makePath = function (path) {
+            if (typeof path === 'string') {
+                return [this.config.baseUrl].concat([path]).join('/');
+            }
             return [this.config.baseUrl].concat(path).join('/');
         };
         Auth2.prototype.getTokens = function (token) {
@@ -270,6 +371,49 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                     default:
                         console.error('ERROR getting tokens', result);
                         throw new Error('Error getting tokens');
+                }
+            });
+        };
+        Auth2.prototype.createToken = function (token, create) {
+            var httpClient = new HttpClient_1.HttpClient();
+            return httpClient.request({
+                method: 'POST',
+                withCredentials: true,
+                url: this.makePath(endpoints.tokensCreate),
+                header: {
+                    Authorization: token,
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(create)
+            })
+                .then(function (result) {
+                if (result.status === 200) {
+                    var data = JSON.parse(result.response);
+                    return data;
+                }
+                else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
+                }
+                else {
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            var error = this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
                 }
             });
         };
@@ -308,20 +452,24 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
-        Auth2.prototype.loginPick = function (token, identityId) {
+        Auth2.prototype.loginPick = function (arg) {
             var data = {
-                id: identityId
+                id: arg.identityId,
+                linkall: arg.linkAll,
+                policy_ids: arg.agreements.map(function (a) {
+                    return [a.id, a.version].join('.');
+                })
             };
             var httpClient = new HttpClient_1.HttpClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.loginPick,
+                url: this.makePath([endpoints.loginPick]),
                 data: JSON.stringify(data),
                 header: {
-                    Authorization: token,
+                    Authorization: arg.token,
                     'Content-Type': 'application/json',
-                    'Accept': 'Application/json'
+                    Accept: 'application/json'
                 }
             })
                 .then(function (result) {
@@ -448,40 +596,40 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.linkPick,
+                url: this.makePath(endpoints.linkPick),
                 data: JSON.stringify(data),
                 header: {
                     Authorization: token,
                     'Content-Type': 'application/json',
-                    'Accept': 'Application/json'
+                    'Accept': 'application/json'
                 }
             })
                 .then(function (result) {
-                var data;
-                try {
-                    data = JSON.parse(result.response);
+                if (result.status === 204) {
+                    return;
                 }
-                catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    };
+                else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
                 }
-                switch (result.status) {
-                    case 200:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
-                    default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        };
+                else {
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            var error = this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
                 }
             });
         };

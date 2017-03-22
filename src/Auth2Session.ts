@@ -1,5 +1,7 @@
 import { CookieManager, Cookie } from './Cookie'
-import { Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, LinkOptions, UnlinkOptions, ITokenInfo} from './Auth2'
+import { 
+    Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, 
+    LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo} from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
@@ -116,12 +118,11 @@ export class Auth2Session {
         return this.auth2Client;
     }
 
-    loginPick(token : string, identityId : string) : Promise<any> {
-        let that = this;
-        return that.auth2Client.loginPick(token, identityId)
+    loginPick(arg: LoginPick) : Promise<any> {
+        return this.auth2Client.loginPick(arg)
             .then((result) => {
-                that.setSessionCookie(result.data.token.token, result.data.token.expires);
-                return that.evaluateSession()
+                this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                return this.evaluateSession()
                     .then(() => {
                         return result;
                     });
@@ -139,12 +140,20 @@ export class Auth2Session {
             });
     }
 
-    getAccount() : Promise<any> {
-        return this.auth2Client.getAccount(this.getToken());
+    // getAccount() : Promise<any> {
+    //     return this.auth2Client.getAccount(this.getToken());
+    // }
+
+    getMe() : Promise<any> {
+        return this.auth2Client.getMe(this.getToken());
     }
 
     getTokens() : Promise<any> {
         return this.auth2Client.getTokens(this.getToken());
+    }
+
+    createToken(data: CreateTokenInput) : Promise<NewTokenInfo> {
+        return this.auth2Client.createToken(this.getToken(), data);
     }
 
     getTokenInfo() : Promise<any> {
@@ -155,9 +164,9 @@ export class Auth2Session {
         return this.auth2Client.getLoginChoice();
     }
 
-    login(config : ILoginOptions) {
+    login(config : ILoginOptions) : void {
         this.setLastProvider(config.provider);
-        return this.auth2Client.login(config)
+        this.auth2Client.loginStartBrowser(config)
     }
 
     link(config : LinkOptions) {
@@ -410,21 +419,27 @@ export class Auth2Session {
         let cookie = new Cookie('sessionpersist')
             .setPath('/');
 
-        if (isPersistent) {
-            this.cookieManager.setItem(cookie
-                .setValue('t')
-                .setMaxAge(Infinity));
-        } else {
-            this.cookieManager.removeItem(cookie);
-        }
+        // if (isPersistent) {
+        //     this.cookieManager.setItem(cookie
+        //         .setValue('t')
+        //         .setMaxAge(Infinity));
+        // } else {
+        //     this.cookieManager.removeItem(cookie);
+        // }
+        this.cookieManager.setItem(cookie
+            .setValue(isPersistent ? 't' : 'f')
+            .setMaxAge(Infinity));
     }
 
     isSessionPersistent() : boolean {
         var persist = this.cookieManager.getItem('sessionpersist');
         if (persist === 't') {
-            return true;            
+            return true;
+        } else if (persist === 'f') {
+            return false;
+        } else {
+            return true;
         }
-        return false;
     }
 
 

@@ -84,7 +84,6 @@ describe('Basic Test', () => {
             url: 'http://localhostx:8098'
         })
             .then((result) => {
-                console.warn('RESULT', result);
                 done.fail('Should have received a GeneralError');
                 return null;
             })
@@ -113,7 +112,6 @@ describe('Basic Test', () => {
                 done.fail(err);
             })
             .finally(() => {
-                console.warn('really???');
                 done();
             });
         requestPromise.cancel();

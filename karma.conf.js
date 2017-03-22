@@ -17,7 +17,8 @@ module.exports = function(config) {
         // browsers: ['Chrome_without_security'],
         // browsers: ['PhantomJS'],
         browsers: ['FirefoxPreserveLog'],
-        // browsers: ['Chrome'],
+        // browsers: ['Firefox'],
+        //browsers: ['Chrome'],
 
         compilerOptions: {
             module: "amd",

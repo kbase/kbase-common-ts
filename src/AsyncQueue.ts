@@ -1,6 +1,5 @@
 import * as Promise from 'bluebird'
 
-
 export class QueueItem {
     run : Function;
     error: Function;
@@ -11,7 +10,6 @@ export class QueueItem {
         this.error = error;
         this.id = id;
     }
-
 }
 
 export class AsyncQueue {
@@ -53,12 +51,15 @@ export class AsyncQueue {
         }, this.queuePauseTime);
     }
 
-    stop() {
-        window.clearTimeout(this.timer);
-        this.timer = null;
+    stop(fun : Function) {
+        this.addItem(() => {            
+            window.clearTimeout(this.timer);
+            this.timer = null;
+            fun();
+        });
     }
 
-    addItem(run : Function, error : Function) {
+    addItem(run : Function, error? : Function) {
         this.itemId += 1;
         this.queue.push(new QueueItem(this.itemId, run, error));
         this.start();
