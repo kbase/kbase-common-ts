@@ -37,7 +37,8 @@ interface AuthEndpoints {
     linkRemove: string,
     tokens: string,
     tokensRevoke: string,
-    tokensCreate: string
+    tokensCreate: string,
+    userSearch: string
 }
 
 const endpoints: AuthEndpoints = {
@@ -55,7 +56,8 @@ const endpoints: AuthEndpoints = {
     linkRemove: 'me/unlink',
     tokens: 'tokens',
     tokensRevoke: 'tokens/revoke',
-    tokensCreate: 'tokens/create'
+    tokensCreate: 'tokens/create',
+    userSearch: 'api/V2/users/search'
 }
 
 
@@ -210,6 +212,15 @@ export interface NewTokenInfo {
     token: string
 }
 
+export interface UserSearchInput {
+    prefix: string,
+    fields: string
+}
+
+export interface UserSearchOutput {
+
+}
+
 // Classes
 
 export class AuthError extends Error {
@@ -222,9 +233,7 @@ export class AuthError extends Error {
         this.code = errorInfo.code;
         this.message = errorInfo.message;
         this.detail = errorInfo.detail;
-
     }
-
 }
 
 
@@ -264,6 +273,7 @@ export class Auth2 {
         let t = html.tagMaker();
         let form = t('form');
         let input = t('input');
+        let button = t('button');
 
         let query = {
             provider: config.provider,
@@ -274,9 +284,9 @@ export class Auth2 {
         let formId = html.genId();
 
         let content = form({
-            method: 'POST',
+            method: 'post',
             id: formId,
-            action: [this.config.baseUrl, endpoints.loginStart].join('/'),
+            action: this.makePath(endpoints.loginStart),
             style: {
                 display: 'hidden'
             }
@@ -292,10 +302,13 @@ export class Auth2 {
                     value: query.redirectUrl
                 }, [])
             ]);
-
-        config.node.innerHTML = content;
-
-        (<HTMLFormElement>document.getElementById(formId)).submit();
+        var donorNode = document.createElement('div');
+            
+        donorNode.innerHTML = content;
+        document.body.appendChild(donorNode);
+        window.setTimeout(() => {
+            (<HTMLFormElement>document.getElementById(formId)).submit();
+        }, 0);
     }
 
     loginStart(config: ILoginOptions): Promise<LoginStartResponse> {
@@ -959,6 +972,57 @@ export class Auth2 {
                     }
                 }
             });
+    }
+
+    userSearch(token: string, search: UserSearchInput) : Promise<any> {
+        let httpClient = new HttpClient();
+        let url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
+        let query = new URLSearchParams();
+        query.append('fields', search.fields);
+        url.search = query.toString();
+
+        return httpClient.request({
+            method: 'GET',
+            withCredentials: true,
+            url: url.toString(),
+             header: {
+                Authorization: token,
+                'Accept': 'application/json'
+             }
+        })
+        .then((result) => {
+            if (result.status === 200) {
+                    let data = JSON.parse(result.response);
+                    return data;
+                } else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server' ,
+                        detail: result.response
+                    });
+                } else {
+                    // TODO: should we distinguish error conditions or let the caller do so?
+                    // Maybe we should throw a basic error type, like 
+                    // AuthorizationError - for 401s
+                    // ClientError - for 400s
+                    // ServerError - for 500s
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            let error = this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
+                }
+        })
+
     }
 
 }

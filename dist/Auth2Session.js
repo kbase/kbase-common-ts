@@ -340,6 +340,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                 return true;
             }
         };
+        Auth2Session.prototype.userSearch = function (search) {
+            return this.auth2Client.userSearch(this.getToken(), search);
+        };
         return Auth2Session;
     }());
     exports.Auth2Session = Auth2Session;

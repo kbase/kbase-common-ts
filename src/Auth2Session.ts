@@ -1,7 +1,8 @@
 import { CookieManager, Cookie } from './Cookie'
 import { 
     Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, 
-    LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo} from './Auth2'
+    LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
+    UserSearchInput} from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
@@ -442,7 +443,9 @@ export class Auth2Session {
         }
     }
 
-
+    userSearch(search: UserSearchInput) {
+        return this.auth2Client.userSearch(this.getToken(), search);
+    }
 
 
 }
