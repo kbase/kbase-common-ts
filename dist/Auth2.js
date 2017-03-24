@@ -26,7 +26,8 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         linkRemove: 'me/unlink',
         tokens: 'tokens',
         tokensRevoke: 'tokens/revoke',
-        tokensCreate: 'tokens/create'
+        tokensCreate: 'tokens/create',
+        userSearch: 'api/V2/users/search'
     };
     var AuthError = (function (_super) {
         __extends(AuthError, _super);
@@ -62,6 +63,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var t = html.tagMaker();
             var form = t('form');
             var input = t('input');
+            var button = t('button');
             var query = {
                 provider: config.provider,
                 redirectUrl: config.redirectUrl,
@@ -69,9 +71,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             };
             var formId = html.genId();
             var content = form({
-                method: 'POST',
+                method: 'post',
                 id: formId,
-                action: [this.config.baseUrl, endpoints.loginStart].join('/'),
+                action: this.makePath(endpoints.loginStart),
                 style: {
                     display: 'hidden'
                 }
@@ -87,8 +89,12 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                     value: query.redirectUrl
                 }, [])
             ]);
-            config.node.innerHTML = content;
-            document.getElementById(formId).submit();
+            var donorNode = document.createElement('div');
+            donorNode.innerHTML = content;
+            document.body.appendChild(donorNode);
+            window.setTimeout(function () {
+                document.getElementById(formId).submit();
+            }, 0);
         };
         Auth2.prototype.loginStart = function (config) {
             var http = new HttpClient_1.HttpClient();
@@ -619,6 +625,52 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                         case 401:
                         case 400:
                             var error = this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
+                }
+            });
+        };
+        Auth2.prototype.userSearch = function (token, search) {
+            var _this = this;
+            var httpClient = new HttpClient_1.HttpClient();
+            var url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
+            var query = new URLSearchParams();
+            query.append('fields', search.fields);
+            url.search = query.toString();
+            return httpClient.request({
+                method: 'GET',
+                withCredentials: true,
+                url: url.toString(),
+                header: {
+                    Authorization: token,
+                    'Accept': 'application/json'
+                }
+            })
+                .then(function (result) {
+                if (result.status === 200) {
+                    var data = JSON.parse(result.response);
+                    return data;
+                }
+                else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
+                }
+                else {
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            var error = _this.decodeError(result);
                             throw new AuthError({
                                 code: String(error.appCode),
                                 message: error.message || error.appError
