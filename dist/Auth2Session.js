@@ -90,6 +90,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.getMe = function () {
             return this.auth2Client.getMe(this.getToken());
         };
+        Auth2Session.prototype.putMe = function (data) {
+            return this.auth2Client.putMe(this.getToken(), data);
+        };
         Auth2Session.prototype.getTokens = function () {
             return this.auth2Client.getTokens(this.getToken());
         };
@@ -102,9 +105,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.getLoginCoice = function () {
             return this.auth2Client.getLoginChoice();
         };
-        Auth2Session.prototype.login = function (config) {
+        Auth2Session.prototype.loginStart = function (config) {
             this.setLastProvider(config.provider);
-            this.auth2Client.loginStartBrowser(config);
+            this.auth2Client.loginStart(config);
         };
         Auth2Session.prototype.link = function (config) {
             return this.auth2Client.linkPost(config);
@@ -342,6 +345,12 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         };
         Auth2Session.prototype.userSearch = function (search) {
             return this.auth2Client.userSearch(this.getToken(), search);
+        };
+        Auth2Session.prototype.adminUserSearch = function (search) {
+            return this.auth2Client.adminUserSearch(this.getToken(), search);
+        };
+        Auth2Session.prototype.getAdminUser = function (username) {
+            return this.auth2Client.getAdminUser(this.getToken(), username);
         };
         return Auth2Session;
     }());

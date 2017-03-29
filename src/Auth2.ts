@@ -38,7 +38,9 @@ interface AuthEndpoints {
     tokens: string,
     tokensRevoke: string,
     tokensCreate: string,
-    userSearch: string
+    userSearch: string,
+    adminUserSearch: string,
+    adminUser: string
 }
 
 const endpoints: AuthEndpoints = {
@@ -57,14 +59,15 @@ const endpoints: AuthEndpoints = {
     tokens: 'tokens',
     tokensRevoke: 'tokens/revoke',
     tokensCreate: 'tokens/create',
-    userSearch: 'api/V2/users/search'
+    userSearch: 'api/V2/users/search',
+    adminUserSearch: 'api/V2/admin/search',
+    adminUser: 'api/V2/admin/user'
 }
 
 
 export interface ILoginOptions {
-    node: HTMLElement,
     provider: string,
-    redirectUrl: string,
+    state: string,
     stayLoggedIn: boolean
 }
 
@@ -164,6 +167,7 @@ export interface LoginChoice {
     pickurl: string,
     provider: string
     redirecturl: string,
+    state: string,
     creationallowed: string,
     create: Array<CreateChoice>,
     login: Array<LoginChoice>,
@@ -221,6 +225,11 @@ export interface UserSearchOutput {
 
 }
 
+export interface PutMeInput {
+    display: string,
+    email: string
+}
+
 // Classes
 
 export class AuthError extends Error {
@@ -267,17 +276,29 @@ export class Auth2 {
         There is no return value, nor any way of verifying that the server
         did the correctthing.
     */
-    loginStartBrowser(config: ILoginOptions): void {
-        // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
+    loginStart(config: ILoginOptions): void {
+        // Set the client state cookie.
+        var state = JSON.stringify(config.state);
+        // var cookies = new CookieManager();
+        // cookies.setItem(new Cookie('client-state')
+        //     .setValue(state)
+        //     .setPath('/'));
+
+        // Punt over to the auth service
         let html = new Html();
         let t = html.tagMaker();
         let form = t('form');
         let input = t('input');
         let button = t('button');
 
+        var url = new URL(document.location.origin);
+        let q = new URLSearchParams(); 
+        q.append('state', JSON.stringify(config.state));
+        url.search = q.toString();
+
         let query = {
             provider: config.provider,
-            redirectUrl: config.redirectUrl,
+            redirectUrl: url.toString(),
             stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
         };
 
@@ -303,81 +324,164 @@ export class Auth2 {
                 }, [])
             ]);
         var donorNode = document.createElement('div');
-            
+
         donorNode.innerHTML = content;
         document.body.appendChild(donorNode);
-        window.setTimeout(() => {
-            (<HTMLFormElement>document.getElementById(formId)).submit();
-        }, 0);
+
+        // console.log(content);
+        (<HTMLFormElement>document.getElementById(formId)).submit();
     }
 
-    loginStart(config: ILoginOptions): Promise<LoginStartResponse> {
-        let http = new HttpClient();
+    // loginStartBrowser(config: ILoginOptions): void {
+    //     // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
+    //     let url = new URL(this.makePath([endpoints.loginStart]));
+    //     let query = new URLSearchParams();
+    //     query.append('provider', config.provider);
+    //     // query.append('redirectUrl', config.redirectUrl);
+    //     query.append('clientstate', config.redirectUrl);
+    //     query.append('stayLoggedIn', config.stayLoggedIn ? 'true' : 'false');
+    //     url.search = query.toString();
 
-        // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
-        let html = new Html();
-        let t = html.tagMaker();
-        let form = t('form');
-        let input = t('input');
+    //     try {
+    //         var result = document.location.assign(url.toString());
+    //         console.log('ok', result);
+    //     } catch (ex) {
+    //         if (ex instanceof DOMException) {
+    //             console.log('DOM ERROR', ex);
+    //         } else {
+    //             console.log('ERROR', ex);
+    //         }
+    //     }
+    // }
 
-        let query = {
-            provider: config.provider,
-            redirectUrl: config.redirectUrl,
-            stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
-        };
-        return http.request({
-            method: 'POST',
-            url: [this.config.baseUrl, endpoints.loginStart].join('/'),
-            header: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            data: JSON.stringify(query)
-        })
-            .then((result) => {
-                switch (result.status) {
-                    case 400:
-                        var error;
-                        try {
-                            error = <Auth2ApiErrorInfo>JSON.parse(result.response);
-                        } catch (ex) {
-                            console.error(ex);
-                            throw new AuthError({
-                                code: 'decode-error',
-                                message: 'Error decoding JSON error response',
-                                detail: ex.message
-                            });
-                        }
-                        console.error(error);
-                        throw new AuthError({
-                            code: String(error.appCode),
-                            message: error.message || error.appError
-                        });
-                    case 200:
-                        try {
-                            return <LoginStartResponse>JSON.parse(result.response);
-                        } catch (ex) {
-                            throw new AuthError({
-                                code: 'decode-error',
-                                message: 'Error decoding JSON login start response',
-                                detail: ex.message
-                            });
-                        }
-                    default:
-                        throw new AuthError({
-                            code: 'unexpected-response-status',
-                            message: 'Unexpected response status: ' + String(result.status)
-                        })
-                }
-            })
-            .catch((err) => {
-                throw new AuthError({
-                    code: String(err.appCode),
-                    message: err.message || err.appError
-                });
-            });
+    // loginStartPost(config: ILoginOptions): Promise<LoginStartResponse> {
+    //     let http = new HttpClient();
 
-    }
+    //     // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
+    //     let html = new Html();
+    //     let t = html.tagMaker();
+    //     let form = t('form');
+    //     let input = t('input');
+
+    //     let query = {
+    //         provider: config.provider,
+    //         redirectUrl: config.redirectUrl,
+    //         stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
+    //     };
+    //     return http.request({
+    //         method: 'POST',
+    //         url: [this.config.baseUrl, endpoints.loginStart].join('/'),
+    //         header: {
+    //             'Content-Type': 'application/json',
+    //             'Accept': 'application/json'
+    //         },
+    //         data: JSON.stringify(query)
+    //     })
+    //         .then((result) => {
+    //             switch (result.status) {
+    //                 case 400:
+    //                     var error;
+    //                     try {
+    //                         error = <Auth2ApiErrorInfo>JSON.parse(result.response);
+    //                     } catch (ex) {
+    //                         console.error(ex);
+    //                         throw new AuthError({
+    //                             code: 'decode-error',
+    //                             message: 'Error decoding JSON error response',
+    //                             detail: ex.message
+    //                         });
+    //                     }
+    //                     console.error(error);
+    //                     throw new AuthError({
+    //                         code: String(error.appCode),
+    //                         message: error.message || error.appError
+    //                     });
+    //                 case 200:
+    //                     try {
+    //                         return <LoginStartResponse>JSON.parse(result.response);
+    //                     } catch (ex) {
+    //                         throw new AuthError({
+    //                             code: 'decode-error',
+    //                             message: 'Error decoding JSON login start response',
+    //                             detail: ex.message
+    //                         });
+    //                     }
+    //                 default:
+    //                     throw new AuthError({
+    //                         code: 'unexpected-response-status',
+    //                         message: 'Unexpected response status: ' + String(result.status)
+    //                     })
+    //             }
+    //         })
+    //         .catch((err) => {
+    //             throw new AuthError({
+    //                 code: String(err.appCode),
+    //                 message: err.message || err.appError
+    //             });
+    //         });
+
+    // }
+
+    // loginStart(config: ILoginOptions): Promise<LoginStartResponse> {
+    //     let http = new HttpClient();
+
+    //     let url = new URL(this.makePath([endpoints.loginStart]));
+    //     let query = new URLSearchParams();
+    //     query.append('provider', config.provider);
+    //     query.append('clientstate', config.state);
+    //     query.append('stayLoggedIn', config.stayLoggedIn ? 'true' : 'false');
+
+    //     return http.request({
+    //         method: 'GET',
+    //         url: url.toString(),
+    //         header: {
+    //         },
+    //         data: JSON.stringify(query)
+    //     })
+    //         .then((result) => {
+    //             switch (result.status) {
+    //                 case 400:
+    //                     var error;
+    //                     try {
+    //                         error = <Auth2ApiErrorInfo>JSON.parse(result.response);
+    //                     } catch (ex) {
+    //                         console.error(ex);
+    //                         throw new AuthError({
+    //                             code: 'decode-error',
+    //                             message: 'Error decoding JSON error response',
+    //                             detail: ex.message
+    //                         });
+    //                     }
+    //                     console.error(error);
+    //                     throw new AuthError({
+    //                         code: String(error.appCode),
+    //                         message: error.message || error.appError
+    //                     });
+    //                 case 200:
+    //                     try {
+    //                         return <LoginStartResponse>JSON.parse(result.response);
+    //                     } catch (ex) {
+    //                         throw new AuthError({
+    //                             code: 'decode-error',
+    //                             message: 'Error decoding JSON login start response',
+    //                             detail: ex.message
+    //                         });
+    //                     }
+    //                 default:
+    //                     throw new AuthError({
+    //                         code: 'unexpected-response-status',
+    //                         message: 'Unexpected response status: ' + String(result.status)
+    //                     })
+    //             }
+    //         })
+    //         .catch((err) => {
+    //             throw new AuthError({
+    //                 code: String(err.appCode),
+    //                 message: err.message || err.appError
+    //             });
+    //         });
+
+    // }
 
     linkPost(config: LinkOptions): void {
         let html = new Html();
@@ -463,7 +567,7 @@ export class Auth2 {
 			UnLinkFailedException, DisabledUserException, NoSuchIdentityException
     */
 
-    decodeError(result : Response) : Auth2ApiErrorInfo {
+    decodeError(result: Response): Auth2ApiErrorInfo {
         var error;
         try {
             return <Auth2ApiErrorInfo>JSON.parse(result.response);
@@ -497,7 +601,7 @@ export class Auth2 {
                 } else if (result.status === 500) {
                     throw new AuthError({
                         code: 'server-error',
-                        message: 'An error occurred in the server' ,
+                        message: 'An error occurred in the server',
                         detail: result.response
                     });
                 } else {
@@ -645,7 +749,7 @@ export class Auth2 {
                 Accept: 'application/json'
             }
         })
-            .then(function (result) {
+            .then((result) => {
                 try {
                     return JSON.parse(result.response);
                 } catch (ex) {
@@ -653,6 +757,25 @@ export class Auth2 {
                     throw new Error('Cannot parse "me" result:' + ex.message);
                 }
             });
+    }
+
+    putMe(token: string, data: PutMeInput) : Promise<any> {
+        let httpClient = new HttpClient();
+        return httpClient.request({
+            method: 'PUT',
+            withCredentials: true,
+            url: this.makePath(endpoints.me),
+            header: {
+                Authorization: token,
+                Accept: 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(data)
+        })
+        .then((result) => {
+            this.processResult(result);
+            return null;
+        });
     }
 
     makePath(path: Array<string> | string): string {
@@ -704,14 +827,14 @@ export class Auth2 {
             },
             data: JSON.stringify(create)
         })
-        .then(function (result) {
+            .then(function (result) {
                 if (result.status === 200) {
                     let data = <NewTokenInfo>JSON.parse(result.response);
                     return data;
                 } else if (result.status === 500) {
                     throw new AuthError({
                         code: 'server-error',
-                        message: 'An error occurred in the server' ,
+                        message: 'An error occurred in the server',
                         detail: result.response
                     });
                 } else {
@@ -735,7 +858,7 @@ export class Auth2 {
                             });
                     }
                 }
-        });
+            });
     }
 
     // Note that the auth2 service will have set cookies 
@@ -754,6 +877,13 @@ export class Auth2 {
                 var data;
                 try {
                     data = <LoginChoice>JSON.parse(result.response);
+                    if (data.redirecturl) {
+                        var url = new URL(data.redirecturl);
+                        if (url.search && url.search.length > 0) {
+                            var params = new URLSearchParams(url.search.slice(1));
+                            data.state = JSON.parse(params.get('state'));
+                        }
+                    }
                 } catch (ex) {
                     throw new AuthError({
                         code: 'parse',
@@ -941,13 +1071,13 @@ export class Auth2 {
             }
         })
             .then(function (result) {
-                 if (result.status === 204) {
+                if (result.status === 204) {
                     // happy ending :)
                     return;
                 } else if (result.status === 500) {
                     throw new AuthError({
                         code: 'server-error',
-                        message: 'An error occurred in the server' ,
+                        message: 'An error occurred in the server',
                         detail: result.response
                     });
                 } else {
@@ -974,7 +1104,46 @@ export class Auth2 {
             });
     }
 
-    userSearch(token: string, search: UserSearchInput) : Promise<any> {
+    processResult(result : any) : any {
+        if (result.status === 200) {
+            switch (result.header['Content-Type']) {
+                case 'application/json':
+                    return JSON.parse(result.response);
+                case 'text/plain':
+                    return result.response;
+            }
+        } else if (result.status === 204) {
+            return;
+        } else if (result.status === 500) {
+            throw new AuthError({
+                code: 'server-error',
+                message: 'An error occurred in the server',
+                detail: result.response
+            });
+        } else {
+            // TODO: should we distinguish error conditions or let the caller do so?
+            // Maybe we should throw a basic error type, like 
+            // AuthorizationError - for 401s
+            // ClientError - for 400s
+            // ServerError - for 500s
+            switch (result.status) {
+                case 401:
+                case 400:
+                    let error = this.decodeError(result);
+                    throw new AuthError({
+                        code: String(error.appCode),
+                        message: error.message || error.appError
+                    });
+                default:
+                    throw new AuthError({
+                        code: 'unexpected-response-status',
+                        message: 'Unexpected response status: ' + String(result.status)
+                    });
+            }
+        }
+    }
+
+    userSearch(token: string, search: UserSearchInput): Promise<any> {
         let httpClient = new HttpClient();
         let url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
         let query = new URLSearchParams();
@@ -985,19 +1154,19 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: url.toString(),
-             header: {
+            header: {
                 Authorization: token,
                 'Accept': 'application/json'
-             }
+            }
         })
-        .then((result) => {
-            if (result.status === 200) {
+            .then((result) => {
+                if (result.status === 200) {
                     let data = JSON.parse(result.response);
                     return data;
                 } else if (result.status === 500) {
                     throw new AuthError({
                         code: 'server-error',
-                        message: 'An error occurred in the server' ,
+                        message: 'An error occurred in the server',
                         detail: result.response
                     });
                 } else {
@@ -1021,8 +1190,74 @@ export class Auth2 {
                             });
                     }
                 }
-        })
+            })
 
+    }
+
+    adminUserSearch(token: string, search: UserSearchInput): Promise<any> {
+        let httpClient = new HttpClient();
+        let url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
+        let query = new URLSearchParams();
+        query.append('fields', search.fields);
+        url.search = query.toString();
+
+        return httpClient.request({
+            method: 'GET',
+            withCredentials: true,
+            url: url.toString(),
+            header: {
+                Authorization: token,
+                Accept: 'application/json'
+            }
+        })
+            .then((result) => {
+                if (result.status === 200) {
+                    let data = JSON.parse(result.response);
+                    return data;
+                } else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
+                } else {
+                    // TODO: should we distinguish error conditions or let the caller do so?
+                    // Maybe we should throw a basic error type, like 
+                    // AuthorizationError - for 401s
+                    // ClientError - for 400s
+                    // ServerError - for 500s
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            let error = this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
+                }
+            })
+    }
+
+     getAdminUser(token: string, username: string): Promise<any> {
+        let httpClient = new HttpClient();
+        return httpClient.request({
+            method: 'GET',
+            withCredentials: true,
+            url: this.makePath([endpoints.adminUser, username]),
+            header: {
+                Authorization: token,
+                Accept: 'application/json'
+            }
+        })
+            .then((result) => {
+                return this.processResult(result);
+            });
     }
 
 }
