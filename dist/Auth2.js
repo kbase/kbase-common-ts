@@ -27,7 +27,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
         tokens: 'tokens',
         tokensRevoke: 'tokens/revoke',
         tokensCreate: 'tokens/create',
-        userSearch: 'api/V2/users/search'
+        userSearch: 'api/V2/users/search',
+        adminUserSearch: 'api/V2/admin/search',
+        adminUser: 'api/V2/admin/user'
     };
     var AuthError = (function (_super) {
         __extends(AuthError, _super);
@@ -58,15 +60,20 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 return (provider.id === providerId);
             })[0];
         };
-        Auth2.prototype.loginStartBrowser = function (config) {
+        Auth2.prototype.loginStart = function (config) {
+            var state = JSON.stringify(config.state);
             var html = new Html_1.Html();
             var t = html.tagMaker();
             var form = t('form');
             var input = t('input');
             var button = t('button');
+            var url = new URL(document.location.origin);
+            var q = new URLSearchParams();
+            q.append('state', JSON.stringify(config.state));
+            url.search = q.toString();
             var query = {
                 provider: config.provider,
-                redirectUrl: config.redirectUrl,
+                redirectUrl: url.toString(),
                 stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
             };
             var formId = html.genId();
@@ -92,74 +99,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
             var donorNode = document.createElement('div');
             donorNode.innerHTML = content;
             document.body.appendChild(donorNode);
-            window.setTimeout(function () {
-                document.getElementById(formId).submit();
-            }, 0);
-        };
-        Auth2.prototype.loginStart = function (config) {
-            var http = new HttpClient_1.HttpClient();
-            var html = new Html_1.Html();
-            var t = html.tagMaker();
-            var form = t('form');
-            var input = t('input');
-            var query = {
-                provider: config.provider,
-                redirectUrl: config.redirectUrl,
-                stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
-            };
-            return http.request({
-                method: 'POST',
-                url: [this.config.baseUrl, endpoints.loginStart].join('/'),
-                header: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                data: JSON.stringify(query)
-            })
-                .then(function (result) {
-                switch (result.status) {
-                    case 400:
-                        var error;
-                        try {
-                            error = JSON.parse(result.response);
-                        }
-                        catch (ex) {
-                            console.error(ex);
-                            throw new AuthError({
-                                code: 'decode-error',
-                                message: 'Error decoding JSON error response',
-                                detail: ex.message
-                            });
-                        }
-                        console.error(error);
-                        throw new AuthError({
-                            code: String(error.appCode),
-                            message: error.message || error.appError
-                        });
-                    case 200:
-                        try {
-                            return JSON.parse(result.response);
-                        }
-                        catch (ex) {
-                            throw new AuthError({
-                                code: 'decode-error',
-                                message: 'Error decoding JSON login start response',
-                                detail: ex.message
-                            });
-                        }
-                    default:
-                        throw new AuthError({
-                            code: 'unexpected-response-status',
-                            message: 'Unexpected response status: ' + String(result.status)
-                        });
-                }
-            })
-                .catch(function (err) {
-                throw new AuthError({
-                    code: String(err.appCode),
-                    message: err.message || err.appError
-                });
-            });
+            document.getElementById(formId).submit();
         };
         Auth2.prototype.linkPost = function (config) {
             var html = new Html_1.Html();
@@ -344,6 +284,25 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
+        Auth2.prototype.putMe = function (token, data) {
+            var _this = this;
+            var httpClient = new HttpClient_1.HttpClient();
+            return httpClient.request({
+                method: 'PUT',
+                withCredentials: true,
+                url: this.makePath(endpoints.me),
+                header: {
+                    Authorization: token,
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(data)
+            })
+                .then(function (result) {
+                _this.processResult(result);
+                return null;
+            });
+        };
         Auth2.prototype.makePath = function (path) {
             if (typeof path === 'string') {
                 return [this.config.baseUrl].concat([path]).join('/');
@@ -436,6 +395,13 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 var data;
                 try {
                     data = JSON.parse(result.response);
+                    if (data.redirecturl) {
+                        var url = new URL(data.redirecturl);
+                        if (url.search && url.search.length > 0) {
+                            var params = new URLSearchParams(url.search.slice(1));
+                            data.state = JSON.parse(params.get('state'));
+                        }
+                    }
                 }
                 catch (ex) {
                     throw new AuthError({
@@ -638,6 +604,42 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                 }
             });
         };
+        Auth2.prototype.processResult = function (result) {
+            if (result.status === 200) {
+                switch (result.header['Content-Type']) {
+                    case 'application/json':
+                        return JSON.parse(result.response);
+                    case 'text/plain':
+                        return result.response;
+                }
+            }
+            else if (result.status === 204) {
+                return;
+            }
+            else if (result.status === 500) {
+                throw new AuthError({
+                    code: 'server-error',
+                    message: 'An error occurred in the server',
+                    detail: result.response
+                });
+            }
+            else {
+                switch (result.status) {
+                    case 401:
+                    case 400:
+                        var error = this.decodeError(result);
+                        throw new AuthError({
+                            code: String(error.appCode),
+                            message: error.message || error.appError
+                        });
+                    default:
+                        throw new AuthError({
+                            code: 'unexpected-response-status',
+                            message: 'Unexpected response status: ' + String(result.status)
+                        });
+                }
+            }
+        };
         Auth2.prototype.userSearch = function (token, search) {
             var _this = this;
             var httpClient = new HttpClient_1.HttpClient();
@@ -682,6 +684,68 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpClient"], function (r
                             });
                     }
                 }
+            });
+        };
+        Auth2.prototype.adminUserSearch = function (token, search) {
+            var _this = this;
+            var httpClient = new HttpClient_1.HttpClient();
+            var url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
+            var query = new URLSearchParams();
+            query.append('fields', search.fields);
+            url.search = query.toString();
+            return httpClient.request({
+                method: 'GET',
+                withCredentials: true,
+                url: url.toString(),
+                header: {
+                    Authorization: token,
+                    Accept: 'application/json'
+                }
+            })
+                .then(function (result) {
+                if (result.status === 200) {
+                    var data = JSON.parse(result.response);
+                    return data;
+                }
+                else if (result.status === 500) {
+                    throw new AuthError({
+                        code: 'server-error',
+                        message: 'An error occurred in the server',
+                        detail: result.response
+                    });
+                }
+                else {
+                    switch (result.status) {
+                        case 401:
+                        case 400:
+                            var error = _this.decodeError(result);
+                            throw new AuthError({
+                                code: String(error.appCode),
+                                message: error.message || error.appError
+                            });
+                        default:
+                            throw new AuthError({
+                                code: 'unexpected-response-status',
+                                message: 'Unexpected response status: ' + String(result.status)
+                            });
+                    }
+                }
+            });
+        };
+        Auth2.prototype.getAdminUser = function (token, username) {
+            var _this = this;
+            var httpClient = new HttpClient_1.HttpClient();
+            return httpClient.request({
+                method: 'GET',
+                withCredentials: true,
+                url: this.makePath([endpoints.adminUser, username]),
+                header: {
+                    Authorization: token,
+                    Accept: 'application/json'
+                }
+            })
+                .then(function (result) {
+                return _this.processResult(result);
             });
         };
         return Auth2;

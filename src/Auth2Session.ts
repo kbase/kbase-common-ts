@@ -2,7 +2,7 @@ import { CookieManager, Cookie } from './Cookie'
 import { 
     Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, 
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
-    UserSearchInput} from './Auth2'
+    UserSearchInput, PutMeInput} from './Auth2'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
@@ -32,8 +32,6 @@ export class Auth2Session {
     cookieMaxAge : number;
 
     changeListeners : {[key:string] : Function};
-
-
 
 // cookieName: string,
 //     baseUrl: string,
@@ -149,6 +147,10 @@ export class Auth2Session {
         return this.auth2Client.getMe(this.getToken());
     }
 
+    putMe(data : PutMeInput) : Promise<any> {
+        return this.auth2Client.putMe(this.getToken(), data)
+    }
+
     getTokens() : Promise<any> {
         return this.auth2Client.getTokens(this.getToken());
     }
@@ -165,9 +167,9 @@ export class Auth2Session {
         return this.auth2Client.getLoginChoice();
     }
 
-    login(config : ILoginOptions) : void {
+    loginStart(config : ILoginOptions) : void {
         this.setLastProvider(config.provider);
-        this.auth2Client.loginStartBrowser(config)
+        this.auth2Client.loginStart(config)
     }
 
     link(config : LinkOptions) {
@@ -447,5 +449,12 @@ export class Auth2Session {
         return this.auth2Client.userSearch(this.getToken(), search);
     }
 
+    adminUserSearch(search: UserSearchInput) {
+        return this.auth2Client.adminUserSearch(this.getToken(), search);
+    }
+
+    getAdminUser(username: string) {
+        return this.auth2Client.getAdminUser(this.getToken(), username);
+    }
 
 }
