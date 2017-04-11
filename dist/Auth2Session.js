@@ -69,7 +69,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
             var _this = this;
             return this.auth2Client.loginPick(arg)
                 .then(function (result) {
-                _this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                _this.setSessionCookie(result.token.token, result.token.expires);
                 return _this.evaluateSession()
                     .then(function () {
                     return result;
@@ -80,12 +80,18 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
             var _this = this;
             return this.auth2Client.loginCreate(data)
                 .then(function (result) {
-                _this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                _this.setSessionCookie(result.token.token, result.token.expires);
                 return _this.evaluateSession()
                     .then(function () {
                     return result;
                 });
             });
+        };
+        Auth2Session.prototype.loginUsernameSuggest = function (username) {
+            return this.auth2Client.loginUsernameSuggest(username);
+        };
+        Auth2Session.prototype.loginCancel = function () {
+            return this.auth2Client.loginCancel();
         };
         Auth2Session.prototype.getMe = function () {
             return this.auth2Client.getMe(this.getToken());

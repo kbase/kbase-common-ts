@@ -120,7 +120,7 @@ export class Auth2Session {
     loginPick(arg: LoginPick) : Promise<any> {
         return this.auth2Client.loginPick(arg)
             .then((result) => {
-                this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                this.setSessionCookie(result.token.token, result.token.expires);
                 return this.evaluateSession()
                     .then(() => {
                         return result;
@@ -131,12 +131,20 @@ export class Auth2Session {
     loginCreate(data: ILoginCreateOptions) : Promise<any> {
         return this.auth2Client.loginCreate(data)
             .then((result) => {
-                this.setSessionCookie(result.data.token.token, result.data.token.expires);
+                this.setSessionCookie(result.token.token, result.token.expires);
                 return this.evaluateSession()
                     .then(() => {
                         return result;
                     });
             });
+    }
+
+    loginUsernameSuggest(username: string): Promise<any> {
+        return this.auth2Client.loginUsernameSuggest(username);
+    }
+
+    loginCancel(): Promise<null> {
+        return this.auth2Client.loginCancel();
     }
 
     // getAccount() : Promise<any> {
