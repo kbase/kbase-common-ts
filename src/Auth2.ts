@@ -6,7 +6,8 @@ import * as Promise from 'bluebird';
 
 interface AuthProvider {
     id: string,
-    label: string
+    label: string,
+    logoutUrl: string
 }
 
 export interface CookieConfig {
@@ -17,8 +18,7 @@ export interface CookieConfig {
 export interface AuthConfig {
     cookieName: string,
     extraCookies: Array<CookieConfig>
-    baseUrl: string,
-    providers: Array<AuthProvider>
+    baseUrl: string
 }
 
 
@@ -29,7 +29,9 @@ interface AuthEndpoints {
     loginStart: string,
     loginChoice: string,
     loginCreate: string,
+    loginUsernameSuggest: string,
     loginPick: string,
+    loginCancel: string,
     logout: string,
     linkStart: string,
     linkChoice: string,
@@ -51,7 +53,9 @@ const endpoints: AuthEndpoints = {
     logout: 'logout',
     loginChoice: 'login/choice',
     loginCreate: 'login/create',
+    loginUsernameSuggest: 'login/suggestname',
     loginPick: 'login/pick',
+    loginCancel: 'login/cancel',
     linkStart: 'link/start',
     linkChoice: 'link/choice',
     linkPick: 'link/pick',
@@ -180,13 +184,19 @@ export interface LoginChoice {
 export interface Auth2ApiErrorInfo {
     appCode: number,
     appError: string,
-    message: string
+    message: string,
+    httpCode: number,
+    httpStatus: string,
+    callID: string,
+    time: number
 }
 
 export interface AuthErrorInfo {
     code: string,
+    status?: number,
     message: string,
     detail?: string
+    data?: any
 }
 
 export interface PolicyAgreement {
@@ -195,7 +205,6 @@ export interface PolicyAgreement {
 }
 
 export interface LoginPick {
-    token: string,
     identityId: string,
     linkAll: boolean,
     agreements: Array<PolicyAgreement>
@@ -236,12 +245,18 @@ export class AuthError extends Error {
     code: string;
     message: string;
     detail?: string;
+    data?: any;
     constructor(errorInfo: AuthErrorInfo) {
         super(errorInfo.message);
+        //console.log('proto', AuthError.prototype);
+        Object.setPrototypeOf(this, AuthError.prototype);
+        this.name = 'AuthError';
 
         this.code = errorInfo.code;
         this.message = errorInfo.message;
         this.detail = errorInfo.detail;
+        this.data = errorInfo.data;
+        this.stack = (<any>new Error()).stack;
     }
 }
 
@@ -261,11 +276,23 @@ export class Auth2 {
     }
 
     getProviders(): Array<AuthProvider> {
-        return this.config.providers;
+        return [
+            {
+                id: 'Globus',
+                label: 'Globus',
+                logoutUrl: 'https://www.globus.org/app/logout'
+            },
+            {
+                id: 'Google',
+                label: 'Google',
+                logoutUrl: 'https://accounts.google.com/Logout'
+            }
+        ];
+
     }
     getProvider(providerId: string): AuthProvider {
         var providers = this.getProviders();
-        return providers.filter(function (provider) {
+        return providers.filter((provider) => {
             return (provider.id === providerId);
         })[0];
     }
@@ -292,9 +319,10 @@ export class Auth2 {
         let button = t('button');
 
         var url = new URL(document.location.origin);
-        let q = new URLSearchParams(); 
-        q.append('state', JSON.stringify(config.state));
-        url.search = q.toString();
+
+        url.search = new HttpQuery({
+            state: JSON.stringify(config.state)
+        }).toString();
 
         let query = {
             provider: config.provider,
@@ -595,36 +623,7 @@ export class Auth2 {
             url: this.makePath([endpoints.linkRemove, config.identityId])
         })
             .then((result: Response) => {
-                if (result.status === 204) {
-                    // happy ending :)
-                    return;
-                } else if (result.status === 500) {
-                    throw new AuthError({
-                        code: 'server-error',
-                        message: 'An error occurred in the server',
-                        detail: result.response
-                    });
-                } else {
-                    // TODO: should we distinguish error conditions or let the caller do so?
-                    // Maybe we should throw a basic error type, like 
-                    // AuthorizationError - for 401s
-                    // ClientError - for 400s
-                    // ServerError - for 500s
-                    switch (result.status) {
-                        case 401:
-                        case 400:
-                            let error = this.decodeError(result);
-                            throw new AuthError({
-                                code: String(error.appCode),
-                                message: error.message || error.appError
-                            });
-                        default:
-                            throw new AuthError({
-                                code: 'unexpected-response-status',
-                                message: 'Unexpected response status: ' + String(result.status)
-                            });
-                    }
-                }
+                return this.processResult(result, 204);
             });
     }
 
@@ -642,18 +641,7 @@ export class Auth2 {
             url: this.config.baseUrl + '/' + endpoints.tokensRevoke + '/' + tokenid
         })
             .then((result: Response) => {
-                switch (result.status) {
-                    case 204:
-                        return {
-                            status: 'ok'
-                        }
-                    default:
-                        return {
-                            status: 'error',
-                            message: 'Unexpected response logging out',
-                            statusCode: result.status
-                        };
-                }
+                return this.processResult(result, 204);
             });
     }
 
@@ -668,51 +656,7 @@ export class Auth2 {
             }
         })
             .then((result: Response) => {
-                var response;
-                try {
-                    response = JSON.parse(result.response)
-                } catch (ex) {
-                    throw new AuthError({
-                        code: 'json-parse-error',
-                        message: ex.message,
-                        detail: 'An unexpected error occurred parsing the request response as JSON.'
-                    });
-                }
-
-                if (result.status === 200) {
-                    return <ITokenInfo>response;
-                }
-
-                var error = <Auth2ApiErrorInfo>response;
-
-                switch (result.status) {
-                    case 401:
-                        throw new AuthError({
-                            code: String(error.appCode),
-                            message: error.appError,
-                            detail: 'An authorization error occurred'
-                        });
-                    case 400:
-                        throw new AuthError({
-                            code: 'client-error',
-                            message: error.appError,
-                            detail: 'An unexpected client error occurred'
-                        });
-                    case 500:
-                        throw new AuthError({
-                            code: 'server-error',
-                            message: error.appError,
-                            detail: 'An unexpected server error occurred'
-                        });
-                    default:
-                        throw new AuthError({
-                            code: 'unexpected-error',
-                            message: error.appError,
-                            detail: 'An unexpected error occurred'
-                        });
-                }
-
-
+                return <ITokenInfo>this.processResult(result, 200);
             });
     }
 
@@ -750,16 +694,11 @@ export class Auth2 {
             }
         })
             .then((result) => {
-                try {
-                    return JSON.parse(result.response);
-                } catch (ex) {
-                    console.error('ERROR getting user account info', result);
-                    throw new Error('Cannot parse "me" result:' + ex.message);
-                }
+                return <Account>this.processResult(result, 200);
             });
     }
 
-    putMe(token: string, data: PutMeInput) : Promise<any> {
+    putMe(token: string, data: PutMeInput): Promise<any> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'PUT',
@@ -772,10 +711,9 @@ export class Auth2 {
             },
             data: JSON.stringify(data)
         })
-        .then((result) => {
-            this.processResult(result);
-            return null;
-        });
+            .then((result) => {
+                this.processResult(result, 204);
+            });
     }
 
     makePath(path: Array<string> | string): string {
@@ -796,21 +734,8 @@ export class Auth2 {
                 Accept: 'application/json'
             }
         })
-            .then(function (result) {
-                var data;
-                try {
-                    data = JSON.parse(result.response);
-                } catch (ex) {
-                    console.error('ERROR getting tokens', result);
-                    throw new Error('Cannot parse "tokens" result');
-                }
-                switch (result.status) {
-                    case 200:
-                        return data;
-                    default:
-                        console.error('ERROR getting tokens', result);
-                        throw new Error('Error getting tokens');
-                }
+            .then((result) => {
+                return <Tokens>this.processResult(result, 200);
             });
     }
 
@@ -827,37 +752,8 @@ export class Auth2 {
             },
             data: JSON.stringify(create)
         })
-            .then(function (result) {
-                if (result.status === 200) {
-                    let data = <NewTokenInfo>JSON.parse(result.response);
-                    return data;
-                } else if (result.status === 500) {
-                    throw new AuthError({
-                        code: 'server-error',
-                        message: 'An error occurred in the server',
-                        detail: result.response
-                    });
-                } else {
-                    // TODO: should we distinguish error conditions or let the caller do so?
-                    // Maybe we should throw a basic error type, like 
-                    // AuthorizationError - for 401s
-                    // ClientError - for 400s
-                    // ServerError - for 500s
-                    switch (result.status) {
-                        case 401:
-                        case 400:
-                            let error = this.decodeError(result);
-                            throw new AuthError({
-                                code: String(error.appCode),
-                                message: error.message || error.appError
-                            });
-                        default:
-                            throw new AuthError({
-                                code: 'unexpected-response-status',
-                                message: 'Unexpected response status: ' + String(result.status)
-                            });
-                    }
-                }
+            .then((result) => {
+                return <NewTokenInfo>this.processResult(result, 200);
             });
     }
 
@@ -868,53 +764,26 @@ export class Auth2 {
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: this.makePath([endpoints.loginChoice]),
+            url: this.makePath(endpoints.loginChoice),
             header: {
                 Accept: 'application/json'
             }
         })
-            .then(function (result) {
-                var data;
-                try {
-                    data = <LoginChoice>JSON.parse(result.response);
-                    if (data.redirecturl) {
-                        var url = new URL(data.redirecturl);
-                        if (url.search && url.search.length > 0) {
-                            var params = new URLSearchParams(url.search.slice(1));
-                            data.state = JSON.parse(params.get('state'));
-                        }
-                    }
-                } catch (ex) {
-                    throw new AuthError({
-                        code: 'parse',
-                        message: 'Error parsing response',
-                        detail: ex.message
-                    });
-                    // return {
-                    //     status: 'error',
-                    //     data: {
-                    //         message: 'Error parsing response',
-                    //         detail: 'ex.message'
-                    //     }
-                    // }
-                }
-                switch (result.status) {
-                    case 200:
-                        return data;
-                    default:
-                        console.error('ERROR fix me', result);
-                        throw new AuthError({
-                            code: '?',
-                            message: 'some message',
-                            detail: 'some detail'
-                        });
-                    // return {
-                    //     status: 'error',
-                    //     code: result.status,
-                    //     data: data
-                    // }
-                }
+            .then((result) => {
+                return <LoginChoice>this.processResult(result, 200);
             });
+    }
+
+    loginCancel(): Promise<null> {
+        let httpClient = new HttpClient();
+        return httpClient.request({
+            method: 'DELETE',
+            withCredentials: true,
+            url: this.makePath(endpoints.loginCancel)
+        })
+        .then((result) => {
+            return this.processResult(result, 204);
+        });
     }
 
     loginPick(arg: LoginPick): Promise<any> {
@@ -932,37 +801,12 @@ export class Auth2 {
             url: this.makePath([endpoints.loginPick]),
             data: JSON.stringify(data),
             header: {
-                Authorization: arg.token,
                 'Content-Type': 'application/json',
                 Accept: 'application/json'
             }
         })
-            .then(function (result) {
-                var data;
-                try {
-                    data = JSON.parse(result.response);
-                } catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    }
-                }
-                switch (result.status) {
-                    case 200:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
-                    default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        }
-                }
+            .then((result) => {
+                return this.processResult(result, 200);
             });
     }
 
@@ -971,39 +815,31 @@ export class Auth2 {
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
-            url: this.config.baseUrl + '/' + endpoints.loginCreate,
+            url: this.makePath(endpoints.loginCreate),
             data: JSON.stringify(data),
             header: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
         })
-            .then(function (result) {
-                var data;
-                try {
-                    data = JSON.parse(result.response);
-                } catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    }
-                }
-                switch (result.status) {
-                    case 201:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
-                    default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        }
-                }
+            .then((result) => {
+                return this.processResult(result, 201);
+            });
+    }
+
+
+    loginUsernameSuggest(username: string): Promise<any> {
+        let httpClient = new HttpClient();
+        return httpClient.request({
+            method: 'GET',
+            withCredentials: true,
+            url: this.makePath([endpoints.loginUsernameSuggest, username]),
+            header: {
+                Accept: 'application/json'
+            }
+        })
+            .then((result) => {
+                return this.processResult(result, 200);
             });
     }
 
@@ -1019,38 +855,8 @@ export class Auth2 {
                 Authorization: token
             }
         })
-            .then(function (result) {
-                var data;
-                try {
-                    data = JSON.parse(result.response);
-                } catch (ex) {
-                    return {
-                        status: 'error',
-                        data: {
-                            message: 'Error parsing response',
-                            detail: 'ex.message'
-                        }
-                    }
-                }
-                switch (result.status) {
-                    case 200:
-                        return {
-                            status: 'ok',
-                            data: data
-                        };
-                    case 400:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        }
-                    default:
-                        return {
-                            status: 'error',
-                            code: result.status,
-                            data: data
-                        }
-                }
+            .then((result) => {
+                return this.processResult(result, 200);
             });
     }
 
@@ -1070,85 +876,106 @@ export class Auth2 {
                 'Accept': 'application/json'
             }
         })
-            .then(function (result) {
-                if (result.status === 204) {
-                    // happy ending :)
-                    return;
-                } else if (result.status === 500) {
-                    throw new AuthError({
-                        code: 'server-error',
-                        message: 'An error occurred in the server',
-                        detail: result.response
-                    });
-                } else {
-                    // TODO: should we distinguish error conditions or let the caller do so?
-                    // Maybe we should throw a basic error type, like 
-                    // AuthorizationError - for 401s
-                    // ClientError - for 400s
-                    // ServerError - for 500s
-                    switch (result.status) {
-                        case 401:
-                        case 400:
-                            let error = this.decodeError(result);
-                            throw new AuthError({
-                                code: String(error.appCode),
-                                message: error.message || error.appError
-                            });
-                        default:
-                            throw new AuthError({
-                                code: 'unexpected-response-status',
-                                message: 'Unexpected response status: ' + String(result.status)
-                            });
-                    }
-                }
+            .then((result) => {
+                return this.processResult(result, 204);
             });
     }
 
-    processResult(result : any) : any {
-        if (result.status === 200) {
-            switch (result.header['Content-Type']) {
-                case 'application/json':
-                    return JSON.parse(result.response);
-                case 'text/plain':
-                    return result.response;
+    processResult(result: any, expectedResponse: number): any {
+        if (result.status >= 200 && result.status < 300) {
+            if (expectedResponse !== result.status) {
+                throw new AuthError({
+                    code: 'unexpected-response-code',
+                    message: 'Unexpected response code; expected ' + String(expectedResponse) + ', received ' + String(result.status)
+                });
             }
-        } else if (result.status === 204) {
-            return;
-        } else if (result.status === 500) {
-            throw new AuthError({
-                code: 'server-error',
-                message: 'An error occurred in the server',
-                detail: result.response
-            });
+            if (result.status === 200 || result.status === 201) {
+                switch (result.header['Content-Type']) {
+                    case 'application/json':
+                        return JSON.parse(result.response);
+                    case 'text/plain':
+                        return result.response;
+                }
+            } else if (result.status === 204) {
+                return null;
+            } else {
+                throw new AuthError({
+                    code: 'unexpected-response-code',
+                    message: 'Unexpected response code; expected ' + String(expectedResponse) + ', received ' + String(result.status)
+                });
+            }
         } else {
             // TODO: should we distinguish error conditions or let the caller do so?
             // Maybe we should throw a basic error type, like 
             // AuthorizationError - for 401s
             // ClientError - for 400s
             // ServerError - for 500s
-            switch (result.status) {
-                case 401:
-                case 400:
-                    let error = this.decodeError(result);
-                    throw new AuthError({
-                        code: String(error.appCode),
-                        message: error.message || error.appError
-                    });
-                default:
-                    throw new AuthError({
-                        code: 'unexpected-response-status',
-                        message: 'Unexpected response status: ' + String(result.status)
-                    });
+            var errorData;
+            var errorText = result.response;
+            try {
+                switch (result.header['Content-Type']) {
+                    case 'application/json':
+                        errorData = JSON.parse(errorText).error;
+                        break;
+                    default:
+                        errorData = {
+                            code: 'unknown',
+                            message: 'Unknown error',
+                            text: errorText
+                        };
+                }
+            } catch (ex) {
+                throw new AuthError({
+                    code: 'decoding-error',
+                    message: 'Error decoding error message',
+                    detail: 'Original error code: ' + result.status,
+                    data: {
+                        text: errorText
+                    }
+                });
             }
+            // console.log('process result error', result.header);
+            let code = errorData.code || errorData.appCode || errorData.httpCode || 0;
+            throw new AuthError({
+                    code: String(code),
+                    status: result.status,
+                    message: errorData.message || errorData.appError,
+                    data: errorData
+                });
+
+            // switch (result.status) {
+            //     case 401:
+            //     case 400:
+            //         let error = this.decodeError(result);
+            //         throw new AuthError({
+            //             code: String(errorData.error.appCode),
+            //             message: errorData.error.message || errorData.error.appError,
+            //             data: errorData
+            //         });
+            //     case 500:
+            //         let error = this.decodeError(result);
+            //         throw new AuthError({
+            //             code: String(errorData.error.appCode),
+            //             message: errorData.error.message || errorData.error.appError,
+            //             data: errorData
+            //         });
+            //     default:
+            //         throw new AuthError({
+            //             code: 'unexpected-response-status',
+            //             message: 'Unexpected response status: ' + String(result.status),
+            //             data: errorData
+            //         });
+            // }
         }
     }
+
 
     userSearch(token: string, search: UserSearchInput): Promise<any> {
         let httpClient = new HttpClient();
         let url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
-        let query = new URLSearchParams();
-        query.append('fields', search.fields);
-        url.search = query.toString();
+        url.search = new HttpQuery({
+            fields: search.fields
+        }).toString();
 
         return httpClient.request({
             method: 'GET',
@@ -1160,46 +987,16 @@ export class Auth2 {
             }
         })
             .then((result) => {
-                if (result.status === 200) {
-                    let data = JSON.parse(result.response);
-                    return data;
-                } else if (result.status === 500) {
-                    throw new AuthError({
-                        code: 'server-error',
-                        message: 'An error occurred in the server',
-                        detail: result.response
-                    });
-                } else {
-                    // TODO: should we distinguish error conditions or let the caller do so?
-                    // Maybe we should throw a basic error type, like 
-                    // AuthorizationError - for 401s
-                    // ClientError - for 400s
-                    // ServerError - for 500s
-                    switch (result.status) {
-                        case 401:
-                        case 400:
-                            let error = this.decodeError(result);
-                            throw new AuthError({
-                                code: String(error.appCode),
-                                message: error.message || error.appError
-                            });
-                        default:
-                            throw new AuthError({
-                                code: 'unexpected-response-status',
-                                message: 'Unexpected response status: ' + String(result.status)
-                            });
-                    }
-                }
+                return this.processResult(result,200);
             })
-
     }
 
     adminUserSearch(token: string, search: UserSearchInput): Promise<any> {
         let httpClient = new HttpClient();
         let url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
-        let query = new URLSearchParams();
-        query.append('fields', search.fields);
-        url.search = query.toString();
+        url.search = new HttpQuery({
+            fields: search.fields
+        }).toString();
 
         return httpClient.request({
             method: 'GET',
@@ -1211,40 +1008,11 @@ export class Auth2 {
             }
         })
             .then((result) => {
-                if (result.status === 200) {
-                    let data = JSON.parse(result.response);
-                    return data;
-                } else if (result.status === 500) {
-                    throw new AuthError({
-                        code: 'server-error',
-                        message: 'An error occurred in the server',
-                        detail: result.response
-                    });
-                } else {
-                    // TODO: should we distinguish error conditions or let the caller do so?
-                    // Maybe we should throw a basic error type, like 
-                    // AuthorizationError - for 401s
-                    // ClientError - for 400s
-                    // ServerError - for 500s
-                    switch (result.status) {
-                        case 401:
-                        case 400:
-                            let error = this.decodeError(result);
-                            throw new AuthError({
-                                code: String(error.appCode),
-                                message: error.message || error.appError
-                            });
-                        default:
-                            throw new AuthError({
-                                code: 'unexpected-response-status',
-                                message: 'Unexpected response status: ' + String(result.status)
-                            });
-                    }
-                }
+                return this.processResult(result, 200);
             })
     }
 
-     getAdminUser(token: string, username: string): Promise<any> {
+    getAdminUser(token: string, username: string): Promise<any> {
         let httpClient = new HttpClient();
         return httpClient.request({
             method: 'GET',
@@ -1256,7 +1024,7 @@ export class Auth2 {
             }
         })
             .then((result) => {
-                return this.processResult(result);
+                return this.processResult(result, 200);
             });
     }
 
