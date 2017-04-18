@@ -362,7 +362,7 @@ export class Auth2Session {
         // Note that we change the cache state but we leave the session intact.
         // TODO: revert back, just testing...
         let sessionAge = now - this.sessionCache.fetchedAt;
-        if (sessionAge > this.session.tokenInfo.cachefor) {
+        if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
             // this.session = null;
             this.sessionCache.state = CacheState.Stale;
             return 'cacheexpired';

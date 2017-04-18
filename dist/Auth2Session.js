@@ -255,7 +255,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 return 'ok';
             }
             var sessionAge = now - this.sessionCache.fetchedAt;
-            if (sessionAge > this.session.tokenInfo.cachefor) {
+            if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
                 this.sessionCache.state = CacheState.Stale;
                 return 'cacheexpired';
             }
