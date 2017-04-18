@@ -74,7 +74,7 @@ export class AbortError extends Error {
     }
 }
 
-interface RequestOptions {
+export interface RequestOptions {
     url: string,
     method: string,
     query?: QueryMap,

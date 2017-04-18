@@ -1,6 +1,16 @@
-define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], function (require, exports, Cookie_1, Auth2_1, Utils_1, Promise) {
+define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", "bluebird"], function (require, exports, Cookie_1, Auth2_1, Auth2Error_1, Utils_1, Promise) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    var CacheState;
+    (function (CacheState) {
+        CacheState[CacheState["New"] = 1] = "New";
+        CacheState[CacheState["Ok"] = 2] = "Ok";
+        CacheState[CacheState["Stale"] = 3] = "Stale";
+        CacheState[CacheState["Syncing"] = 4] = "Syncing";
+        CacheState[CacheState["Error"] = 5] = "Error";
+        CacheState[CacheState["Interrupted"] = 6] = "Interrupted";
+        CacheState[CacheState["None"] = 7] = "None";
+    })(CacheState || (CacheState = {}));
     var Auth2Session = (function () {
         function Auth2Session(config) {
             this.cookieName = config.cookieName;
@@ -11,41 +21,56 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
             this.serviceLoopActive = false;
             this.cookieMaxAge = 300000;
             this.changeListeners = {};
-            this.session = null;
+            this.sessionCache = {
+                session: null,
+                fetchedAt: 0,
+                state: CacheState.New
+            };
         }
+        Auth2Session.prototype.getSession = function () {
+            if (this.sessionCache.state === CacheState.Ok) {
+                return this.sessionCache.session;
+            }
+            return null;
+        };
         Auth2Session.prototype.getToken = function () {
-            if (this.session) {
-                return this.session.token;
+            var session = this.getSession();
+            if (session) {
+                return session.token;
             }
             return null;
         };
         Auth2Session.prototype.getUsername = function () {
-            if (this.session) {
-                return this.session.tokenInfo.user;
+            var session = this.getSession();
+            if (session) {
+                return session.tokenInfo.user;
             }
             return null;
         };
         Auth2Session.prototype.getRealname = function () {
-            if (this.session) {
-                return this.session.tokenInfo.name;
+            var session = this.getSession();
+            if (session) {
+                return session.tokenInfo.name;
             }
             return null;
         };
         Auth2Session.prototype.getKbaseSession = function () {
-            if (!this.session) {
+            var session = this.getSession();
+            if (!session) {
                 return null;
             }
-            var info = this.session.tokenInfo;
+            var info = session.tokenInfo;
             return {
                 un: info.user,
                 user_id: info.user,
                 name: info.name,
-                token: this.session.token,
+                token: session.token,
                 kbase_sessionid: null
             };
         };
         Auth2Session.prototype.isAuthorized = function () {
-            if (this.session) {
+            var session = this.getSession();
+            if (session) {
                 return true;
             }
             return false;
@@ -93,6 +118,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         Auth2Session.prototype.loginCancel = function () {
             return this.auth2Client.loginCancel();
         };
+        Auth2Session.prototype.linkCancel = function () {
+            return this.auth2Client.linkCancel();
+        };
         Auth2Session.prototype.getMe = function () {
             return this.auth2Client.getMe(this.getToken());
         };
@@ -134,7 +162,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
             var _this = this;
             return this.getTokenInfo()
                 .then(function (tokenInfo) {
-                var currentTokenId = _this.session ? _this.session.tokenInfo.id : null;
+                var session = _this.getSession();
+                var currentTokenId = session ? session.tokenInfo.id : null;
                 if (tokenId && tokenId !== currentTokenId) {
                     throw new Error('Supplied token id does not match the current token id, will not log out');
                 }
@@ -179,38 +208,55 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
         };
         Auth2Session.prototype.checkSession = function () {
             var cookieToken = this.auth2Client.getAuthCookie();
-            var currentSession = this.session;
-            var hadSession = this.session ? true : false;
+            var currentSession = this.getSession();
+            var hadSession = currentSession ? true : false;
             var result = null;
             var now = new Date().getTime();
             if (!cookieToken) {
-                this.removeSessionCookie();
-                if (this.session) {
-                    this.session = null;
+                if (this.sessionCache.session) {
+                    this.sessionCache.session = null;
+                    this.sessionCache.state = CacheState.None;
                     return 'loggedout';
                 }
                 else {
+                    this.sessionCache.state = CacheState.None;
                     return 'nosession';
                 }
             }
-            if (this.session === null) {
-                return 'nosession';
-            }
-            if (cookieToken !== currentSession.token) {
-                this.session = null;
+            if (this.sessionCache.session === null) {
                 return 'newtoken';
             }
-            var expiresIn = this.session.tokenInfo.expires - now;
+            if (cookieToken !== this.sessionCache.session.token) {
+                this.sessionCache.session = null;
+                return 'newtoken';
+            }
+            var expiresIn = this.sessionCache.session.tokenInfo.expires - now;
             if (expiresIn <= 0) {
-                this.session = null;
+                this.sessionCache.session = null;
+                this.sessionCache.state = CacheState.None;
                 this.removeSessionCookie();
                 return 'loggedout';
             }
             else if (expiresIn <= 300000) {
             }
-            var sessionAge = now - this.session.fetchedAt;
-            if (sessionAge > this.session.tokenInfo.cachefor) {
-                this.session = null;
+            if (this.sessionCache.state === CacheState.Interrupted) {
+                var interruptedFor = now - this.sessionCache.interruptedAt;
+                var checkedFor = now - this.sessionCache.lastCheckedAt;
+                if (interruptedFor < 60000) {
+                    if (checkedFor > 5000) {
+                        return 'interrupted-retry';
+                    }
+                }
+                else {
+                    if (checkedFor > 60000) {
+                        return 'interrupted-retry';
+                    }
+                }
+                return 'ok';
+            }
+            var sessionAge = now - this.sessionCache.fetchedAt;
+            if (sessionAge > 15000) {
+                this.sessionCache.state = CacheState.Stale;
                 return 'cacheexpired';
             }
             return 'ok';
@@ -227,34 +273,59 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Utils", "bluebird"], fun
                     case 'ok':
                         return;
                     case 'nosession':
+                        return;
+                    case 'interrupted-retry':
                     case 'newtoken':
                     case 'cacheexpired':
                         break;
                     default: throw new Error('Unexpected session state: ' + sessionState);
                 }
                 var cookieToken = _this.auth2Client.getAuthCookie();
-                if (!cookieToken) {
-                    return;
-                }
+                _this.sessionCache.lastCheckedAt = new Date().getTime();
                 return _this.auth2Client.getTokenInfo(cookieToken)
                     .then(function (tokenInfo) {
-                    _this.session = {
+                    _this.sessionCache.fetchedAt = new Date().getTime();
+                    _this.sessionCache.state = CacheState.Ok;
+                    _this.sessionCache.interruptedAt = null;
+                    _this.sessionCache.session = {
                         token: cookieToken,
-                        fetchedAt: new Date().getTime(),
-                        tokenInfo: tokenInfo
+                        tokenInfo: tokenInfo,
                     };
                     switch (sessionState) {
-                        case 'nosession':
-                            _this.notifyListeners('loggedin');
-                            break;
                         case 'newtoken':
                             _this.notifyListeners('loggedin');
+                            break;
+                        case 'interrupted-retry':
+                            _this.notifyListeners('restored');
                             break;
                         case 'cacheexpired':
                     }
                 })
+                    .catch(Auth2Error_1.AuthError, function (err) {
+                    switch (err.code) {
+                        case 'connection-error':
+                        case 'timeout-error':
+                        case 'abort-error':
+                            _this.sessionCache.state = CacheState.Interrupted;
+                            _this.sessionCache.interruptedAt = new Date().getTime();
+                            _this.notifyListeners('interrupted');
+                            switch (sessionState) {
+                                case 'cacheexpired':
+                                case 'newtoken':
+                                    _this.sessionCache.fetchedAt = new Date().getTime();
+                                    _this.notifyListeners('interrupted');
+                                    break;
+                                case 'interrupted-retry':
+                                    _this.notifyListeners('interrupted');
+                                    break;
+                            }
+                            break;
+                        default:
+                            console.error('AUTH ERROR', err);
+                    }
+                })
                     .catch(function (err) {
-                    console.error('ERROR', err);
+                    console.error('ERROR', err, err instanceof Auth2Error_1.AuthError);
                     _this.session = null;
                     _this.removeSessionCookie();
                     if (sessionState === 'newtoken') {

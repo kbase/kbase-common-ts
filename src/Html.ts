@@ -80,7 +80,7 @@ export class Html {
         let merger = (x : any, y : any ) => {
             // 0. Only merge if y is an object, otherwise just skip it.
             if (typeof y === 'object' && y !== null) {
-                Object.keys(y).forEach(function (key) {
+                Object.keys(y).forEach((key) => {
                     var xval = x[key];
                     var yval = y[key];
                     // 1. if no target property, just set it.

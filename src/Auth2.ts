@@ -1,8 +1,10 @@
 import { Cookie, CookieManager } from './Cookie'
 import { Html } from './Html'
 import { HttpQuery } from './HttpUtils'
-import { HttpClient, Response } from './HttpClient'
+import { Response } from './HttpClient'
+import { AuthClient } from './Auth2Client';
 import * as Promise from 'bluebird';
+import { AuthError, AuthErrorInfo} from './Auth2Error';
 
 interface AuthProvider {
     id: string,
@@ -34,6 +36,7 @@ interface AuthEndpoints {
     loginCancel: string,
     logout: string,
     linkStart: string,
+    linkCancel: string,
     linkChoice: string,
     linkPick: string,
     linkRemove: string,
@@ -57,6 +60,7 @@ const endpoints: AuthEndpoints = {
     loginPick: 'login/pick',
     loginCancel: 'login/cancel',
     linkStart: 'link/start',
+    linkCancel: 'link/cancel',
     linkChoice: 'link/choice',
     linkPick: 'link/pick',
     linkRemove: 'me/unlink',
@@ -191,14 +195,6 @@ export interface Auth2ApiErrorInfo {
     time: number
 }
 
-export interface AuthErrorInfo {
-    code: string,
-    status?: number,
-    message: string,
-    detail?: string
-    data?: any
-}
-
 export interface PolicyAgreement {
     id: string,
     version: number
@@ -240,26 +236,6 @@ export interface PutMeInput {
 }
 
 // Classes
-
-export class AuthError extends Error {
-    code: string;
-    message: string;
-    detail?: string;
-    data?: any;
-    constructor(errorInfo: AuthErrorInfo) {
-        super(errorInfo.message);
-        //console.log('proto', AuthError.prototype);
-        Object.setPrototypeOf(this, AuthError.prototype);
-        this.name = 'AuthError';
-
-        this.code = errorInfo.code;
-        this.message = errorInfo.message;
-        this.detail = errorInfo.detail;
-        this.data = errorInfo.data;
-        this.stack = (<any>new Error()).stack;
-    }
-}
-
 
 export class Auth2 {
     cookieManager: CookieManager;
@@ -383,7 +359,7 @@ export class Auth2 {
     // }
 
     // loginStartPost(config: ILoginOptions): Promise<LoginStartResponse> {
-    //     let http = new HttpClient();
+    //     let http = new AuthClient();
 
     //     // login(node: HTMLElement, provider: string, redirectUrl: string, stayLoggedIn: string): void {
     //     let html = new Html();
@@ -451,7 +427,7 @@ export class Auth2 {
     // }
 
     // loginStart(config: ILoginOptions): Promise<LoginStartResponse> {
-    //     let http = new HttpClient();
+    //     let http = new AuthClient();
 
     //     let url = new URL(this.makePath([endpoints.loginStart]));
     //     let query = new URLSearchParams();
@@ -561,7 +537,7 @@ export class Auth2 {
     // }
 
     // removeLink(token: string, config: UnlinkOptions) : Promise<any> {
-    //     let httpClient = new HttpClient();
+    //     let httpClient = new AuthClient();
 
     //     return httpClient.request({
     //         method: 'DELETE',
@@ -610,7 +586,7 @@ export class Auth2 {
     }
 
     removeLink(token: string, config: UnlinkOptions): Promise<void> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
 
         return httpClient.request({
             method: 'POST',
@@ -629,7 +605,7 @@ export class Auth2 {
 
 
     revokeToken(token: string, tokenid: string): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
 
         return httpClient.request({
             method: 'DELETE',
@@ -646,7 +622,7 @@ export class Auth2 {
     }
 
     getTokenInfo(token: string): Promise<ITokenInfo> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             url: this.makePath([endpoints.tokenInfo]),
@@ -661,7 +637,7 @@ export class Auth2 {
     }
 
     // getAccount(token: string): Promise<Account> {
-    //     let httpClient = new HttpClient();
+    //     let httpClient = new AuthClient();
     //     return httpClient.request({
     //         method: 'GET',
     //         withCredentials: true,
@@ -683,7 +659,7 @@ export class Auth2 {
     // }
 
     getMe(token: string): Promise<Account> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
@@ -699,7 +675,7 @@ export class Auth2 {
     }
 
     putMe(token: string, data: PutMeInput): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'PUT',
             withCredentials: true,
@@ -724,7 +700,7 @@ export class Auth2 {
     }
 
     getTokens(token: string): Promise<Tokens> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
@@ -740,7 +716,7 @@ export class Auth2 {
     }
 
     createToken(token: string, create: CreateTokenInput): Promise<NewTokenInfo> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
@@ -760,7 +736,7 @@ export class Auth2 {
     // Note that the auth2 service will have set cookies 
     // in the browser which are implicitly sent.
     getLoginChoice(): Promise<LoginChoice> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
@@ -775,11 +751,29 @@ export class Auth2 {
     }
 
     loginCancel(): Promise<null> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'DELETE',
             withCredentials: true,
-            url: this.makePath(endpoints.loginCancel)
+            url: this.makePath(endpoints.loginCancel),
+            header: {
+                Acccept: 'application/json'
+            }
+        })
+        .then((result) => {
+            return this.processResult(result, 204);
+        });
+    }
+
+    linkCancel(): Promise<null> {
+        let httpClient = new AuthClient();
+        return httpClient.request({
+            method: 'DELETE',
+            withCredentials: true,
+            url: this.makePath(endpoints.linkCancel),
+            header: {
+                Acccept: 'application/json'
+            }
         })
         .then((result) => {
             return this.processResult(result, 204);
@@ -794,7 +788,7 @@ export class Auth2 {
                 return [a.id, a.version].join('.');
             })
         };
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
@@ -811,7 +805,7 @@ export class Auth2 {
     }
 
     loginCreate(data: ILoginCreateOptions): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
@@ -829,7 +823,7 @@ export class Auth2 {
 
 
     loginUsernameSuggest(username: string): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
@@ -844,7 +838,7 @@ export class Auth2 {
     }
 
     getLinkChoice(token: string) {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         // console.error('fetching with', token);
         return httpClient.request({
             method: 'GET',
@@ -864,7 +858,7 @@ export class Auth2 {
         let data = {
             id: identityId
         };
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
@@ -971,7 +965,7 @@ export class Auth2 {
 
 
     userSearch(token: string, search: UserSearchInput): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         let url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
         url.search = new HttpQuery({
             fields: search.fields
@@ -992,7 +986,7 @@ export class Auth2 {
     }
 
     adminUserSearch(token: string, search: UserSearchInput): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         let url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
         url.search = new HttpQuery({
             fields: search.fields
@@ -1013,7 +1007,7 @@ export class Auth2 {
     }
 
     getAdminUser(token: string, username: string): Promise<any> {
-        let httpClient = new HttpClient();
+        let httpClient = new AuthClient();
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
