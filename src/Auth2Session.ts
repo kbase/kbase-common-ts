@@ -1,44 +1,64 @@
 import { CookieManager, Cookie } from './Cookie'
-import { 
-    Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions, 
+import {
+    Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
-    UserSearchInput, PutMeInput} from './Auth2'
+    UserSearchInput, PutMeInput
+} from './Auth2'
+import {
+    AuthError
+} from './Auth2Error'
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
 
+enum CacheState {
+    New = 1, // newly created cache, no token info yet.    
+    Ok, // session token exists and is synced
+    Stale, // session token exists, but cache lifetime has expired
+    Syncing, // session token exists, syncing in progress
+    Error,   // session token exists, error syncing
+    Interrupted, // session token exists, not able to sync
+    None // no session token exists
+}
 
+interface SessionCache {
+    session: Session | null,
+    fetchedAt: number,
+    state: CacheState,
+    interruptedAt?: number,
+    lastCheckedAt?: number
+}
 
 interface Session {
-    token : string,
-    fetchedAt : number,
-    tokenInfo : ITokenInfo
+    token: string,
+    tokenInfo: ITokenInfo,
 }
 
 export class Auth2Session {
 
-    cookieName : string;
+    cookieName: string;
 
     extraCookies: Array<CookieConfig>;
 
-    baseUrl : string;
+    baseUrl: string;
 
-    session : Session;
+    sessionCache: SessionCache;
+    session: Session;
     auth2Client: Auth2;
 
-    cookieManager : CookieManager;
-    serviceLoopActive : boolean;
+    cookieManager: CookieManager;
+    serviceLoopActive: boolean;
 
-    cookieMaxAge : number;
+    cookieMaxAge: number;
 
-    changeListeners : {[key:string] : Function};
+    changeListeners: { [key: string]: Function };
 
-// cookieName: string,
-//     baseUrl: string,
-//     endpoints: AuthEndpoints,
-//     providers: Array<AuthProvider>
+    // cookieName: string,
+    //     baseUrl: string,
+    //     endpoints: AuthEndpoints,
+    //     providers: Array<AuthProvider>
 
-    constructor (config: AuthConfig) {
+    constructor(config: AuthConfig) {
         this.cookieName = config.cookieName;
         this.extraCookies = config.extraCookies;
         this.baseUrl = config.baseUrl;
@@ -54,70 +74,86 @@ export class Auth2Session {
 
         this.changeListeners = {};
 
-        this.session = null;
+        this.sessionCache = {
+            session: null,
+            fetchedAt: 0,
+            state: CacheState.New            
+        }
     }
 
-    getToken() : string | null {
-        if (this.session) {
-            return this.session.token;
+    getSession(): Session | null {
+        if (this.sessionCache.state === CacheState.Ok) {
+            return this.sessionCache.session;
         }
         return null;
     }
 
-    getUsername() : string | null {
-        if (this.session) {
-            return this.session.tokenInfo.user;            
+    getToken(): string | null {
+        var session = this.getSession();
+        if (session) {
+            return session.token;
         }
         return null;
     }
 
-    getRealname() : string | null {
-        if (this.session) {
-            return this.session.tokenInfo.name;
+    getUsername(): string | null {
+        var session = this.getSession();
+        if (session) {
+            return session.tokenInfo.user;
         }
         return null;
     }
 
-    getKbaseSession() : any {
-        if (!this.session) {
+    getRealname(): string | null {
+        var session = this.getSession();
+        if (session) {
+            return session.tokenInfo.name;
+        }
+        return null;
+    }
+
+    getKbaseSession(): any {
+        var session = this.getSession();
+        if (!session) {
             return null;
         }
-        let info = this.session.tokenInfo;
+        let info = session.tokenInfo;
         return {
             un: info.user,
             user_id: info.user,
             name: info.name,
-            token: this.session.token,
+            token: session.token,
             kbase_sessionid: null
         };
     }
 
-    isAuthorized() : boolean {
-        if (this.session) {
+    isAuthorized(): boolean {
+        var session = this.getSession();
+        if (session) {
             return true;
         }
         return false;
     }
 
-    isLoggedIn() : boolean {
+    isLoggedIn(): boolean {
         return this.isAuthorized();
     }
 
-    setLastProvider(providerId : string) : void {
+    setLastProvider(providerId: string): void {
         this.cookieManager.setItem(new Cookie('last-provider-used')
             .setValue(providerId)
             .setMaxAge(Infinity)
             .setPath('/'));
     }
-    getLastProvider() : string {
+    getLastProvider(): string {
         return this.cookieManager.getItem('last-provider-used');
     }
 
-    getClient() : Auth2 {
+    getClient(): Auth2 {
         return this.auth2Client;
     }
 
-    loginPick(arg: LoginPick) : Promise<any> {
+    loginPick(arg: LoginPick): Promise<any> {
         return this.auth2Client.loginPick(arg)
             .then((result) => {
                 this.setSessionCookie(result.token.token, result.token.expires);
@@ -128,7 +164,7 @@ export class Auth2Session {
             });
     }
 
-    loginCreate(data: ILoginCreateOptions) : Promise<any> {
+    loginCreate(data: ILoginCreateOptions): Promise<any> {
         return this.auth2Client.loginCreate(data)
             .then((result) => {
                 this.setSessionCookie(result.token.token, result.token.expires);
@@ -147,40 +183,44 @@ export class Auth2Session {
         return this.auth2Client.loginCancel();
     }
 
+    linkCancel(): Promise<null> {
+        return this.auth2Client.linkCancel();
+    }
+
     // getAccount() : Promise<any> {
     //     return this.auth2Client.getAccount(this.getToken());
     // }
 
-    getMe() : Promise<any> {
+    getMe(): Promise<any> {
         return this.auth2Client.getMe(this.getToken());
     }
 
-    putMe(data : PutMeInput) : Promise<any> {
+    putMe(data: PutMeInput): Promise<any> {
         return this.auth2Client.putMe(this.getToken(), data)
     }
 
-    getTokens() : Promise<any> {
+    getTokens(): Promise<any> {
         return this.auth2Client.getTokens(this.getToken());
     }
 
-    createToken(data: CreateTokenInput) : Promise<NewTokenInfo> {
+    createToken(data: CreateTokenInput): Promise<NewTokenInfo> {
         return this.auth2Client.createToken(this.getToken(), data);
     }
 
-    getTokenInfo() : Promise<any> {
+    getTokenInfo(): Promise<any> {
         return this.auth2Client.getTokenInfo(this.getToken());
     }
 
-    getLoginCoice() : Promise<any> {
+    getLoginCoice(): Promise<any> {
         return this.auth2Client.getLoginChoice();
     }
 
-    loginStart(config : ILoginOptions) : void {
+    loginStart(config: ILoginOptions): void {
         this.setLastProvider(config.provider);
         this.auth2Client.loginStart(config)
     }
 
-    link(config : LinkOptions) {
+    link(config: LinkOptions) {
         return this.auth2Client.linkPost(config);
     }
 
@@ -192,17 +232,18 @@ export class Auth2Session {
         return this.auth2Client.getLinkChoice(this.getToken());
     }
 
-    linkPick(identityId : string) : Promise<any> {
+    linkPick(identityId: string): Promise<any> {
         return this.auth2Client.linkPick(this.getToken(), identityId)
             .then((result) => {
                 return result;
             });
-    }         
+    }
 
-    logout(tokenId?: string) : Promise<any> {
+    logout(tokenId?: string): Promise<any> {
         return this.getTokenInfo()
             .then((tokenInfo) => {
-                var currentTokenId = this.session ? this.session.tokenInfo.id : null;
+                var session = this.getSession();
+                var currentTokenId = session ? session.tokenInfo.id : null;
                 if (tokenId && tokenId !== currentTokenId) {
                     throw new Error('Supplied token id does not match the current token id, will not log out');
                 }
@@ -214,7 +255,7 @@ export class Auth2Session {
             });
     }
 
-    revokeToken(tokenId: string) : Promise<any> {
+    revokeToken(tokenId: string): Promise<any> {
         let that = this;
         return this.getTokenInfo()
             .then((tokenInfo) => {
@@ -223,17 +264,17 @@ export class Auth2Session {
     }
 
 
-    onChange(listener : Function) : string {
+    onChange(listener: Function): string {
         let utils = new Utils();
         let id = utils.genId();
         this.changeListeners[id] = listener;
         return id;
     }
-    offChange(id : string) {
+    offChange(id: string) {
         delete this.changeListeners[id];
     }
-    notifyListeners(change : string | null) {
-        if (change === null ) {
+    notifyListeners(change: string | null) {
+        if (change === null) {
             return;
         }
         Object.keys(this.changeListeners).forEach((key) => {
@@ -246,57 +287,97 @@ export class Auth2Session {
         });
     }
 
-    checkSession() : string {
+    checkSession(): string {
         let cookieToken = this.auth2Client.getAuthCookie();
-        let currentSession = this.session;
-        let hadSession = this.session ? true : false;
-        var result : string | null = null;
+        let currentSession = this.getSession();
+        let hadSession = currentSession ? true : false;
+        var result: string | null = null;
         let now = new Date().getTime();
 
+        // This handles the token cookie going missing. This may happen
+        // if the user signed out in another window, or if they deleted
+        // their cookies.
         if (!cookieToken) {
-            this.removeSessionCookie();
-            if (this.session) {
-                this.session = null;
+            //this.removeSessionCookie();
+            if (this.sessionCache.session) {
+                this.sessionCache.session = null;
+                this.sessionCache.state = CacheState.None;
                 return 'loggedout';
             } else {
-                return 'nosession'
+                this.sessionCache.state = CacheState.None;
+                return 'nosession';
             }
         }
 
-        if (this.session === null) {
-            return 'nosession';
+        // No session, but a cookie has appeard.
+        if (this.sessionCache.session === null) {
+            return 'newtoken';
         }
 
+        // if (session === null) {
+
+        //     return 'nosession';
+        // }
+
         // Detect user or session switcheroo. Just kill the old session.
-        if (cookieToken !== currentSession.token) {
-            // Detect change in token 
-            this.session = null;
+        // The caller of checkSession will need to rebulid the session cache
+        // and provide any notifications.
+        if (cookieToken !== this.sessionCache.session.token) {
+            this.sessionCache.session = null;
             return 'newtoken';
         }
 
         // Detect expired session
-        let expiresIn = this.session.tokenInfo.expires - now;
+        // TODO: this is just temporary
+        let expiresIn = this.sessionCache.session.tokenInfo.expires - now;
+        // let expiresIn = this.sessionCache.fetchedAt + 30000 - now;
+        // console.log('expires in', this.sessionCache.fetchedAt, now, expiresIn);
         if (expiresIn <= 0) {
-            this.session = null;
+            this.sessionCache.session = null;
+            this.sessionCache.state = CacheState.None;
             this.removeSessionCookie();
             return 'loggedout';
         } else if (expiresIn <= 300000) {
             // TODO: issue warning to ui.
             // console.warn('session about to expire', expiresIn);
-        } 
+            
+        }
 
-        let sessionAge = now - this.session.fetchedAt;
-        // If we _still_ have a session, see if we need to refetch the session state.
-        if (sessionAge > this.session.tokenInfo.cachefor) {
-            this.session = null;
+        // Attempt to restore interrupted session.
+        // We do this once every 5 seconds for one minute,
+        // then once every minute.
+        if (this.sessionCache.state === CacheState.Interrupted) {
+            let interruptedFor = now - this.sessionCache.interruptedAt;
+            let checkedFor = now - this.sessionCache.lastCheckedAt;
+            if (interruptedFor < 60000) {
+                if (checkedFor > 5000) {
+                    return 'interrupted-retry';
+                }
+            } else {
+                if (checkedFor > 60000) {
+                    return 'interrupted-retry'
+                }
+            }
+            return 'ok';
+        }
+
+        // If we _still_ have a session, see if the cache is stale.
+        // Note that we change the cache state but we leave the session intact.
+        // TODO: revert back, just testing...
+        let sessionAge = now - this.sessionCache.fetchedAt;
+        if (sessionAge > 15000) {
+            // if (sessionAge > this.session.tokenInfo.cachefor) {
+            // this.session = null;
+            this.sessionCache.state = CacheState.Stale;
             return 'cacheexpired';
         }
+
         return 'ok';
     }
 
-    evaluateSession() : Promise<any> {
+    evaluateSession(): Promise<any> {
         return Promise.try(() => {
-            let change : string | null = null;
+            let change: string | null = null;
             let sessionState = this.checkSession();
             switch (sessionState) {
                 case 'loggedout':
@@ -305,54 +386,84 @@ export class Auth2Session {
                 case 'ok':
                     return;
                 case 'nosession':
+                    return;
+                case 'interrupted-retry':
                 case 'newtoken':
                 case 'cacheexpired':
+                    // All these cases need the session to be rebuilt.
                     break;
                 default: throw new Error('Unexpected session state: ' + sessionState);
             }
 
-            // No need to fetch a new session if checkSession lets
-            // us keep it.
-
             let cookieToken = this.auth2Client.getAuthCookie();
-            if (!cookieToken) {
-                return;
-            }
+            // if (!cookieToken) {
+            //     return;
+            // }
+            this.sessionCache.lastCheckedAt = new Date().getTime();            
             return this.auth2Client.getTokenInfo(cookieToken)
                 .then((tokenInfo) => {
                     // TODO detect invalidated token...
-                    this.session = {
+                    this.sessionCache.fetchedAt = new Date().getTime();
+                    this.sessionCache.state = CacheState.Ok;
+                    this.sessionCache.interruptedAt = null;
+                    this.sessionCache.session = {
                         token: cookieToken,
-                        fetchedAt: new Date().getTime(),
-                        tokenInfo: tokenInfo
+                        tokenInfo: tokenInfo,
                     };
 
                     switch (sessionState) {
-                        case 'nosession':
-                            this.notifyListeners('loggedin');
-                            break;
                         case 'newtoken':
                             this.notifyListeners('loggedin');
                             break;
+                        case 'interrupted-retry':
+                            this.notifyListeners('restored');
+                            break;
                         case 'cacheexpired':
-                            // nothing special;
+                        // nothing special, the session has just been
+                        // reconfirmed.
+                    }
+                })
+                .catch(AuthError, (err) => {
+                    switch (err.code) {
+                        case 'connection-error':
+                        case 'timeout-error':
+                        case 'abort-error':
+                            // TODO: remove
+                            this.sessionCache.state = CacheState.Interrupted;
+                            this.sessionCache.interruptedAt = new Date().getTime();
+                            this.notifyListeners('interrupted');
+                            switch (sessionState) {
+                                case 'cacheexpired':
+                                case 'newtoken':
+                                    // TODO: go to error page
+                                    this.sessionCache.fetchedAt = new Date().getTime()
+                                    this.notifyListeners('interrupted');
+                                    break;
+                                case 'interrupted-retry':
+                                    this.notifyListeners('interrupted');
+                                    break;
+                            }
+                            // console.error('CONNECTION ERROR', err);
+                            break; 
+                        default:
+                            console.error('AUTH ERROR', err);
                     }
                 })
                 .catch((err) => {
                     // TODO: signal error to UI.
-                    console.error('ERROR', err);                    
+                    console.error('ERROR', err, err instanceof AuthError);
                     this.session = null;
                     this.removeSessionCookie();
                     if (sessionState === 'newtoken') {
                         this.notifyListeners('loggedout');
                     }
-                });            
+                });
         });
     }
 
-    loopTimer : number;
+    loopTimer: number;
 
-    start() : Promise<any> {
+    start(): Promise<any> {
         return Promise.try(() => {
             let nextLoop = () => {
                 if (!this.serviceLoopActive) {
@@ -364,7 +475,7 @@ export class Auth2Session {
                 return this.evaluateSession()
                     .then(() => {
                         nextLoop();
-                    });            
+                    });
             }
             this.serviceLoopActive = true;
             serviceLoop();
@@ -372,7 +483,7 @@ export class Auth2Session {
         });
     }
 
-    stop() : Promise<any> {
+    stop(): Promise<any> {
         return Promise.try(() => {
             this.serviceLoopActive = false;
             if (this.loopTimer) {
@@ -384,7 +495,7 @@ export class Auth2Session {
 
     // COOKIES
 
-    setSessionCookie(token : string, expiration: number) {
+    setSessionCookie(token: string, expiration: number) {
         let sessionCookie = new Cookie(this.cookieName)
             .setValue(token)
             .setPath('/')
@@ -405,9 +516,9 @@ export class Auth2Session {
 
                 if (this.isSessionPersistent()) {
                     extraCookie.setExpires(new Date(expiration).toUTCString());
-                };                    
+                };
 
-                that.cookieManager.setItem(extraCookie);                    
+                that.cookieManager.setItem(extraCookie);
             });
         }
     }
@@ -426,7 +537,7 @@ export class Auth2Session {
 
     // Session persistence
 
-    setSessionPersistent(isPersistent : boolean) : void {
+    setSessionPersistent(isPersistent: boolean): void {
         let cookie = new Cookie('sessionpersist')
             .setPath('/');
 
@@ -442,7 +553,7 @@ export class Auth2Session {
             .setMaxAge(Infinity));
     }
 
-    isSessionPersistent() : boolean {
+    isSessionPersistent(): boolean {
         var persist = this.cookieManager.getItem('sessionpersist');
         if (persist === 't') {
             return true;

@@ -1,14 +1,4 @@
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient"], function (require, exports, Cookie_1, Html_1, HttpUtils_1, HttpClient_1) {
+define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Client", "./Auth2Error"], function (require, exports, Cookie_1, Html_1, HttpUtils_1, Auth2Client_1, Auth2Error_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var endpoints = {
@@ -23,6 +13,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         loginPick: 'login/pick',
         loginCancel: 'login/cancel',
         linkStart: 'link/start',
+        linkCancel: 'link/cancel',
         linkChoice: 'link/choice',
         linkPick: 'link/pick',
         linkRemove: 'me/unlink',
@@ -33,22 +24,6 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         adminUserSearch: 'api/V2/admin/search',
         adminUser: 'api/V2/admin/user'
     };
-    var AuthError = (function (_super) {
-        __extends(AuthError, _super);
-        function AuthError(errorInfo) {
-            var _this = _super.call(this, errorInfo.message) || this;
-            Object.setPrototypeOf(_this, AuthError.prototype);
-            _this.name = 'AuthError';
-            _this.code = errorInfo.code;
-            _this.message = errorInfo.message;
-            _this.detail = errorInfo.detail;
-            _this.data = errorInfo.data;
-            _this.stack = new Error().stack;
-            return _this;
-        }
-        return AuthError;
-    }(Error));
-    exports.AuthError = AuthError;
     var Auth2 = (function () {
         function Auth2(config) {
             this.config = config;
@@ -151,7 +126,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
             }
             catch (ex) {
                 console.error(ex);
-                throw new AuthError({
+                throw new Auth2Error_1.AuthError({
                     code: 'decode-error',
                     message: 'Error decoding JSON error response',
                     detail: ex.message
@@ -160,7 +135,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.removeLink = function (token, config) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -177,7 +152,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.revokeToken = function (token, tokenid) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
@@ -193,7 +168,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getTokenInfo = function (token) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 url: this.makePath([endpoints.tokenInfo]),
@@ -208,7 +183,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getMe = function (token) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -224,7 +199,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.putMe = function (token, data) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'PUT',
                 withCredentials: true,
@@ -248,7 +223,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getTokens = function (token) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -264,7 +239,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.createToken = function (token, create) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -282,7 +257,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getLoginChoice = function () {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -297,11 +272,29 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.loginCancel = function () {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
-                url: this.makePath(endpoints.loginCancel)
+                url: this.makePath(endpoints.loginCancel),
+                header: {
+                    Acccept: 'application/json'
+                }
+            })
+                .then(function (result) {
+                return _this.processResult(result, 204);
+            });
+        };
+        Auth2.prototype.linkCancel = function () {
+            var _this = this;
+            var httpClient = new Auth2Client_1.AuthClient();
+            return httpClient.request({
+                method: 'DELETE',
+                withCredentials: true,
+                url: this.makePath(endpoints.linkCancel),
+                header: {
+                    Acccept: 'application/json'
+                }
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -316,7 +309,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
                     return [a.id, a.version].join('.');
                 })
             };
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -333,7 +326,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.loginCreate = function (data) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -350,7 +343,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.loginUsernameSuggest = function (username) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -365,7 +358,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getLinkChoice = function (token) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -384,7 +377,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
             var data = {
                 id: identityId
             };
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -403,7 +396,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         Auth2.prototype.processResult = function (result, expectedResponse) {
             if (result.status >= 200 && result.status < 300) {
                 if (expectedResponse !== result.status) {
-                    throw new AuthError({
+                    throw new Auth2Error_1.AuthError({
                         code: 'unexpected-response-code',
                         message: 'Unexpected response code; expected ' + String(expectedResponse) + ', received ' + String(result.status)
                     });
@@ -420,7 +413,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
                     return null;
                 }
                 else {
-                    throw new AuthError({
+                    throw new Auth2Error_1.AuthError({
                         code: 'unexpected-response-code',
                         message: 'Unexpected response code; expected ' + String(expectedResponse) + ', received ' + String(result.status)
                     });
@@ -443,7 +436,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
                     }
                 }
                 catch (ex) {
-                    throw new AuthError({
+                    throw new Auth2Error_1.AuthError({
                         code: 'decoding-error',
                         message: 'Error decoding error message',
                         detail: 'Original error code: ' + result.status,
@@ -453,7 +446,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
                     });
                 }
                 var code = errorData.code || errorData.appCode || errorData.httpCode || 0;
-                throw new AuthError({
+                throw new Auth2Error_1.AuthError({
                     code: String(code),
                     status: result.status,
                     message: errorData.message || errorData.appError,
@@ -463,7 +456,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.userSearch = function (token, search) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             var url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
             url.search = new HttpUtils_1.HttpQuery({
                 fields: search.fields
@@ -483,7 +476,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.adminUserSearch = function (token, search) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             var url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
             url.search = new HttpUtils_1.HttpQuery({
                 fields: search.fields
@@ -503,7 +496,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./HttpClient
         };
         Auth2.prototype.getAdminUser = function (token, username) {
             var _this = this;
-            var httpClient = new HttpClient_1.HttpClient();
+            var httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
