@@ -328,10 +328,7 @@ export class Auth2Session {
         }
 
         // Detect expired session
-        // TODO: this is just temporary
         let expiresIn = this.sessionCache.session.tokenInfo.expires - now;
-        // let expiresIn = this.sessionCache.fetchedAt + 30000 - now;
-        // console.log('expires in', this.sessionCache.fetchedAt, now, expiresIn);
         if (expiresIn <= 0) {
             this.sessionCache.session = null;
             this.sessionCache.state = CacheState.None;
@@ -365,8 +362,7 @@ export class Auth2Session {
         // Note that we change the cache state but we leave the session intact.
         // TODO: revert back, just testing...
         let sessionAge = now - this.sessionCache.fetchedAt;
-        if (sessionAge > 15000) {
-            // if (sessionAge > this.session.tokenInfo.cachefor) {
+        if (sessionAge > this.session.tokenInfo.cachefor) {
             // this.session = null;
             this.sessionCache.state = CacheState.Stale;
             return 'cacheexpired';
