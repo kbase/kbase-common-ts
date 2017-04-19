@@ -12,6 +12,7 @@ export class AuthClient extends HttpClient{
     }
 
     request(options: RequestOptions) : Promise<any> {
+        console.log('requesting....', options);
         return super.request(options)
             .catch(GeneralError, (err) => {
                 throw new AuthError({

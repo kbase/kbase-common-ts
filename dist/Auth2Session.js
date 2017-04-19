@@ -334,24 +334,34 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 });
             });
         };
+        Auth2Session.prototype.serverTimeOffset = function () {
+            return this.now - this.root.servertime;
+        };
         Auth2Session.prototype.start = function () {
             var _this = this;
-            return Promise.try(function () {
-                var nextLoop = function () {
-                    if (!_this.serviceLoopActive) {
-                        return;
-                    }
-                    _this.loopTimer = window.setTimeout(serviceLoop, 1000);
-                };
-                var serviceLoop = function () {
-                    return _this.evaluateSession()
-                        .then(function () {
-                        nextLoop();
-                    });
-                };
-                _this.serviceLoopActive = true;
-                serviceLoop();
-                return;
+            console.log('starting');
+            return this.auth2Client.root()
+                .then(function (root) {
+                console.log('ROOT', root);
+                _this.root = root;
+                _this.now = new Date().getTime();
+                return Promise.try(function () {
+                    var nextLoop = function () {
+                        if (!_this.serviceLoopActive) {
+                            return;
+                        }
+                        _this.loopTimer = window.setTimeout(serviceLoop, 1000);
+                    };
+                    var serviceLoop = function () {
+                        return _this.evaluateSession()
+                            .then(function () {
+                            nextLoop();
+                        });
+                    };
+                    _this.serviceLoopActive = true;
+                    serviceLoop();
+                    return;
+                });
             });
         };
         Auth2Session.prototype.stop = function () {
