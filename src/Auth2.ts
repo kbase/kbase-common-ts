@@ -457,28 +457,6 @@ export class Auth2 {
             });
     }
 
-    // getAccount(token: string): Promise<Account> {
-    //     let httpClient = new AuthClient();
-    //     return httpClient.request({
-    //         method: 'GET',
-    //         withCredentials: true,
-    //         url: this.config.baseUrl + '/' + endpoints.apiMe,
-    //         header: {
-    //             Authorization: token,
-    //             Accept: 'application/json'
-    //         }
-    //     })
-    //         .then(function (result) {
-    //             console.log('result', result);
-    //             try {
-    //                 return JSON.parse(result.response);
-    //             } catch (ex) {
-    //                 console.error('ERROR getting user account info', result);
-    //                 throw new Error('Cannot parse "me" result:' + ex.message);
-    //             }
-    //         });
-    // }
-
     getMe(token: string): Promise<Account> {
         let httpClient = new AuthClient();
         return httpClient.request({

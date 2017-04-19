@@ -13,7 +13,6 @@ export class AuthError extends Error {
     data?: any;
     constructor(errorInfo: AuthErrorInfo) {
         super(errorInfo.message);
-        //console.log('proto', AuthError.prototype);
         Object.setPrototypeOf(this, AuthError.prototype);
         this.name = 'AuthError';
 
