@@ -470,10 +470,8 @@ export class Auth2Session {
     loopTimer: number;
 
     start(): Promise<any> {
-        console.log('starting');
         return this.auth2Client.root()
         .then((root) => {
-            console.log('ROOT', root);
             this.root = root;
             this.now = new Date().getTime();
             return Promise.try(() => {

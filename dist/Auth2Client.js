@@ -20,7 +20,6 @@ define(["require", "exports", "./HttpClient", "./Auth2Error"], function (require
             return (error instanceof HttpClient_1.GeneralError);
         };
         AuthClient.prototype.request = function (options) {
-            console.log('requesting....', options);
             return _super.prototype.request.call(this, options)
                 .catch(HttpClient_1.GeneralError, function (err) {
                 throw new Auth2Error_1.AuthError({

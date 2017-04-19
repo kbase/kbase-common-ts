@@ -339,10 +339,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         };
         Auth2Session.prototype.start = function () {
             var _this = this;
-            console.log('starting');
             return this.auth2Client.root()
                 .then(function (root) {
-                console.log('ROOT', root);
                 _this.root = root;
                 _this.now = new Date().getTime();
                 return Promise.try(function () {
