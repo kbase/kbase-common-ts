@@ -2,7 +2,7 @@ import { CookieManager, Cookie } from './Cookie'
 import {
     Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
-    UserSearchInput, PutMeInput
+    UserSearchInput, PutMeInput, RootInfo
 } from './Auth2'
 import {
     AuthError
@@ -52,6 +52,10 @@ export class Auth2Session {
     cookieMaxAge: number;
 
     changeListeners: { [key: string]: Function };
+
+    root: RootInfo;
+
+    now: number;
 
     // cookieName: string,
     //     baseUrl: string,
@@ -457,25 +461,38 @@ export class Auth2Session {
         });
     }
 
+    // root stuff
+    serverTimeOffset() : number {
+        return this.now - this.root.servertime;
+    }
+
+
     loopTimer: number;
 
     start(): Promise<any> {
-        return Promise.try(() => {
-            let nextLoop = () => {
-                if (!this.serviceLoopActive) {
-                    return;
+        console.log('starting');
+        return this.auth2Client.root()
+        .then((root) => {
+            console.log('ROOT', root);
+            this.root = root;
+            this.now = new Date().getTime();
+            return Promise.try(() => {
+                let nextLoop = () => {
+                    if (!this.serviceLoopActive) {
+                        return;
+                    }
+                    this.loopTimer = window.setTimeout(serviceLoop, 1000);
+                };
+                let serviceLoop = () => {
+                    return this.evaluateSession()
+                        .then(() => {
+                            nextLoop();
+                        });
                 }
-                this.loopTimer = window.setTimeout(serviceLoop, 1000);
-            };
-            let serviceLoop = () => {
-                return this.evaluateSession()
-                    .then(() => {
-                        nextLoop();
-                    });
-            }
-            this.serviceLoopActive = true;
-            serviceLoop();
-            return;
+                this.serviceLoopActive = true;
+                serviceLoop();
+                return;
+            });
         });
     }
 

@@ -2,6 +2,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var endpoints = {
+        root: '',
         tokenInfo: 'api/V2/token',
         apiMe: 'api/V2/me',
         me: 'me',
@@ -52,6 +53,21 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 return (provider.id === providerId);
             })[0];
         };
+        Auth2.prototype.root = function () {
+            var _this = this;
+            var httpClient = new Auth2Client_1.AuthClient();
+            return httpClient.request({
+                method: 'GET',
+                withCredentials: true,
+                header: {
+                    Accept: 'application/json'
+                },
+                url: this.makePath([endpoints.root])
+            })
+                .then(function (result) {
+                return _this.processResult(result, 200);
+            });
+        };
         Auth2.prototype.loginStart = function (config) {
             var state = JSON.stringify(config.state);
             var html = new Html_1.Html();
@@ -65,8 +81,8 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             }).toString();
             var query = {
                 provider: config.provider,
-                redirectUrl: url.toString(),
-                stayLoggedIn: config.stayLoggedIn ? 'true' : 'false'
+                redirecturl: url.toString(),
+                stayloggedin: config.stayLoggedIn ? 'true' : 'false'
             };
             var formId = html.genId();
             var content = form({
@@ -84,8 +100,8 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 }, []),
                 input({
                     type: 'hidden',
-                    name: 'redirect',
-                    value: query.redirectUrl
+                    name: 'redirecturl',
+                    value: query.redirecturl
                 }, [])
             ]);
             var donorNode = document.createElement('div');
@@ -278,7 +294,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 withCredentials: true,
                 url: this.makePath(endpoints.loginCancel),
                 header: {
-                    Acccept: 'application/json'
+                    Accept: 'application/json'
                 }
             })
                 .then(function (result) {
@@ -305,7 +321,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             var data = {
                 id: arg.identityId,
                 linkall: arg.linkAll,
-                policy_ids: arg.agreements.map(function (a) {
+                policyids: arg.agreements.map(function (a) {
                     return [a.id, a.version].join('.');
                 })
             };
@@ -445,11 +461,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                         }
                     });
                 }
-                var code = errorData.code || errorData.appCode || errorData.httpCode || 0;
+                var code = errorData.code || errorData.appcode || errorData.httpcode || 0;
                 throw new Auth2Error_1.AuthError({
                     code: String(code),
                     status: result.status,
-                    message: errorData.message || errorData.appError,
+                    message: errorData.message || errorData.apperror,
                     data: errorData
                 });
             }
