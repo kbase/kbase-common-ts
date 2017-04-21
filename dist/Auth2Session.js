@@ -102,15 +102,11 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             });
         };
         Auth2Session.prototype.loginCreate = function (data) {
-            var _this = this;
-            return this.auth2Client.loginCreate(data)
-                .then(function (result) {
-                _this.setSessionCookie(result.token.token, result.token.expires);
-                return _this.evaluateSession()
-                    .then(function () {
-                    return result;
-                });
-            });
+            return this.auth2Client.loginCreate(data);
+        };
+        Auth2Session.prototype.initializeSession = function (tokenInfo) {
+            this.setSessionCookie(tokenInfo.token, tokenInfo.expires);
+            return this.evaluateSession();
         };
         Auth2Session.prototype.loginUsernameSuggest = function (username) {
             return this.auth2Client.loginUsernameSuggest(username);
