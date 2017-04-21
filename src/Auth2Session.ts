@@ -169,14 +169,12 @@ export class Auth2Session {
     }
 
     loginCreate(data: ILoginCreateOptions): Promise<any> {
-        return this.auth2Client.loginCreate(data)
-            .then((result) => {
-                this.setSessionCookie(result.token.token, result.token.expires);
-                return this.evaluateSession()
-                    .then(() => {
-                        return result;
-                    });
-            });
+        return this.auth2Client.loginCreate(data);
+    }
+
+    initializeSession(tokenInfo: any): Promise<any> {
+        this.setSessionCookie(tokenInfo.token, tokenInfo.expires);
+        return this.evaluateSession();
     }
 
     loginUsernameSuggest(username: string): Promise<any> {
