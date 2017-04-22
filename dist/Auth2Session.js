@@ -353,8 +353,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         });
                     };
                     _this.serviceLoopActive = true;
-                    serviceLoop();
-                    return;
+                    return serviceLoop();
                 });
             });
         };
