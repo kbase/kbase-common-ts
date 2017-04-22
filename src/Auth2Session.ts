@@ -486,8 +486,7 @@ export class Auth2Session {
                         });
                 }
                 this.serviceLoopActive = true;
-                serviceLoop();
-                return;
+                return serviceLoop();
             });
         });
     }
