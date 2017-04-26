@@ -1,4 +1,4 @@
-import {HttpQuery, QueryMap} from './HttpUtils';
+import { HttpQuery, QueryMap } from './HttpUtils';
 
 import * as Promise from 'bluebird';
 
@@ -6,7 +6,97 @@ Promise.config({
     cancellation: true
 });
 
-type HttpHeader = {[key: string] : string};
+export type HttpHeaderFields = { [key: string]: string };
+
+interface ContentType {
+    mediaType: string;
+    charset: string;
+}
+
+export class HttpHeader {
+    header: HttpHeaderFields;
+
+    public static fromXHR(xhr: XMLHttpRequest): HttpHeaderFields {
+        let responseHeaders = xhr.getAllResponseHeaders();
+        if (!responseHeaders) {
+            return {};
+        }
+        let fieldsArray = responseHeaders.split(/\n/);
+        var fieldsMap: { [key: string]: string } = {};
+        fieldsArray.forEach((field) => {
+            let firstColon = field.indexOf(':', 0);
+            let name = field.substr(0, firstColon).trim();
+            let value = field.substr(firstColon + 1).trim();
+            fieldsMap[name.toLowerCase()] = value;
+        });
+        return fieldsMap;
+    }
+
+    public static fromMap(header: any): HttpHeaderFields {
+        var fieldsMap: { [key: string]: string } = {};
+        Object.keys(header).forEach((name) => {
+            fieldsMap[name.toLowerCase()] = header[name];
+        });
+        return fieldsMap;
+    }
+
+    constructor(initialHeaders?: any) {
+        if (typeof initialHeaders === 'undefined') {
+            this.header = {};
+        } else if (initialHeaders instanceof XMLHttpRequest) {
+            this.header = HttpHeader.fromXHR(initialHeaders);
+        } else {
+            this.header = HttpHeader.fromMap(initialHeaders);
+        }
+    }
+
+    getHeader(fieldName: string): string {
+        return this.header[fieldName.toLowerCase()];
+    }
+
+    setHeader(fieldName: string, fieldValue: string): void {
+        this.header[fieldName.toLowerCase()] = fieldValue;
+    }
+
+    exportHeader(xhr: XMLHttpRequest) {
+        Object.keys(this.header)
+            .filter((key) => {
+                if (this.getHeader(key) === undefined ||
+                    this.getHeader(key) === null) {
+                    return false;
+                }
+                return true;
+            })
+            .forEach((key) => {
+                // normalize value?
+                var stringValue = (function (value) {
+                    switch (typeof value) {
+                        case 'string': return value;
+                        case 'number': return String(value);
+                        case 'boolean': return String(value);
+                        default:
+                            throw new Error('Invalid type for header value: ' + typeof value);
+                    }
+                }(this.getHeader(key)));
+                xhr.setRequestHeader(key, stringValue);
+            });
+    }
+
+    getContentType(): ContentType {
+        let value = this.header['content-type'];
+        if (!value) {
+            return {
+                mediaType: null,
+                charset: null
+            }
+        }
+        let values = value.split(';').map((x) => x.trim());
+        return {
+            mediaType: values[0],
+            charset: values[1] || null
+        };
+    }
+}
 
 // interface HttpHeaderField {
 //     name: string;
@@ -15,25 +105,25 @@ type HttpHeader = {[key: string] : string};
 
 
 export class TimeoutError extends Error {
-    timeout : number;
-    elapsed : number;
-    xhr : XMLHttpRequest;
+    timeout: number;
+    elapsed: number;
+    xhr: XMLHttpRequest;
 
-    constructor(timeout : number, elapsed: number, message: string, xhr: XMLHttpRequest) {
+    constructor(timeout: number, elapsed: number, message: string, xhr: XMLHttpRequest) {
         super(message);
 
         // A terrible hack,thanks TypeScript.
         Object.setPrototypeOf(this, TimeoutError.prototype);
 
         this.name = 'TimeoutError';
-        this.stack = (<any> new Error()).stack;
+        this.stack = (<any>new Error()).stack;
 
         this.timeout = timeout;
         this.elapsed = elapsed;
         this.xhr = xhr;
     }
 
-    toString() : string {
+    toString(): string {
         if (this.message) {
             return this.message;
         }
@@ -41,35 +131,35 @@ export class TimeoutError extends Error {
 }
 
 export class GeneralError extends Error {
-    xhr : XMLHttpRequest;
-    constructor(message : string, xhr: XMLHttpRequest) {
+    xhr: XMLHttpRequest;
+    constructor(message: string, xhr: XMLHttpRequest) {
         super(message);
-        
+
         // A terrible hack,thanks TypeScript.
         Object.setPrototypeOf(this, GeneralError.prototype);
 
         this.name = 'GeneralError';
-        this.stack = (<any> new Error()).stack;
-        
+        this.stack = (<any>new Error()).stack;
+
         this.xhr = xhr;
     }
-    toString() : string {
+    toString(): string {
         return this.message;
     }
 }
 
 export class AbortError extends Error {
-    xhr : XMLHttpRequest;
-    constructor(message : string, xhr: XMLHttpRequest) {
+    xhr: XMLHttpRequest;
+    constructor(message: string, xhr: XMLHttpRequest) {
         super(message);
         Object.setPrototypeOf(this, AbortError.prototype);
 
         this.name = 'AbortError';
-        this.stack = (<any> new Error()).stack;
+        this.stack = (<any>new Error()).stack;
 
         this.xhr = xhr;
     }
-    toString() : string {
+    toString(): string {
         return this.message;
     }
 }
@@ -78,12 +168,13 @@ export interface RequestOptions {
     url: string,
     method: string,
     query?: QueryMap,
-    timeout? : number,
+    timeout?: number,
     header?: HttpHeader,
     responseType?: string,
     withCredentials?: boolean,
     data?: null | string | Array<number>
 }
+
 
 export interface Response {
     status: number,
@@ -92,38 +183,19 @@ export interface Response {
 }
 
 export class HttpClient {
-
     constructor() {
-
     }
 
-    getHeader(xhr : XMLHttpRequest) : HttpHeader {
-        let header : HttpHeader = {};
-        let headerString = xhr.getAllResponseHeaders();
-        if (!headerString) {
-            return header;
-        }
-        let headerFields = headerString.split(/\n/);
-        headerFields.pop();
-        headerFields.forEach((field) => {
-            let firstColon = field.indexOf(':', 0);
-            let name = field.substr(0, firstColon).trim();
-            let value = field.substr(firstColon + 1).trim();
-            header[name] = value;
-        });
-        return header;
-    }
-
-    request(options: RequestOptions) : Promise<any> {
+    request(options: RequestOptions): Promise<Response> {
         let startTime = new Date().getTime();
         let that = this;
-        return new Promise((resolve, reject, onCancel) => {
+        return <Promise<Response>>new Promise((resolve, reject, onCancel) => {
             let xhr = new XMLHttpRequest();
             xhr.onload = () => {
                 resolve(<Response>{
                     status: xhr.status,
                     response: xhr.response,
-                    header: that.getHeader(xhr)
+                    header: new HttpHeader(xhr)
                 });
             };
             xhr.ontimeout = () => {
@@ -156,27 +228,7 @@ export class HttpClient {
 
             try {
                 if (options.header) {
-                    Object.keys(options.header)
-                    .filter((key) => {
-                        if (options.header[key] === undefined ||
-                            options.header[key] === null) {
-                            return false;
-                        }
-                        return true;
-                    })
-                    .forEach((key) => {
-                        // normalize value?
-                        var stringValue = (function (value) {
-                            switch (typeof value) {
-                            case 'string': return value;
-                            case 'number': return String(value);
-                            case 'boolean': return String(value);
-                            default:
-                                throw new Error('Invalid type for header value: ' + typeof value);
-                            }
-                        }(options.header[key]));
-                        xhr.setRequestHeader(key, stringValue);
-                    });
+                    options.header.exportHeader(xhr);
                 }
 
                 if (typeof options.data === 'string') {
@@ -187,7 +239,7 @@ export class HttpClient {
                         });
                     }
                 } else if (options.data instanceof Array) {
-                    xhr.send(new Uint8Array(options.data)); 
+                    xhr.send(new Uint8Array(options.data));
                 } else if (typeof options.data === 'undefined') {
                     xhr.send();
                 } else if (options.data === null) {

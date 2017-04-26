@@ -14,6 +14,86 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
     Promise.config({
         cancellation: true
     });
+    var HttpHeader = (function () {
+        function HttpHeader(initialHeaders) {
+            if (typeof initialHeaders === 'undefined') {
+                this.header = {};
+            }
+            else if (initialHeaders instanceof XMLHttpRequest) {
+                this.header = HttpHeader.fromXHR(initialHeaders);
+            }
+            else {
+                this.header = HttpHeader.fromMap(initialHeaders);
+            }
+        }
+        HttpHeader.fromXHR = function (xhr) {
+            var responseHeaders = xhr.getAllResponseHeaders();
+            if (!responseHeaders) {
+                return {};
+            }
+            var fieldsArray = responseHeaders.split(/\n/);
+            var fieldsMap = {};
+            fieldsArray.forEach(function (field) {
+                var firstColon = field.indexOf(':', 0);
+                var name = field.substr(0, firstColon).trim();
+                var value = field.substr(firstColon + 1).trim();
+                fieldsMap[name.toLowerCase()] = value;
+            });
+            return fieldsMap;
+        };
+        HttpHeader.fromMap = function (header) {
+            var fieldsMap = {};
+            Object.keys(header).forEach(function (name) {
+                fieldsMap[name.toLowerCase()] = header[name];
+            });
+            return fieldsMap;
+        };
+        HttpHeader.prototype.getHeader = function (fieldName) {
+            return this.header[fieldName.toLowerCase()];
+        };
+        HttpHeader.prototype.setHeader = function (fieldName, fieldValue) {
+            this.header[fieldName.toLowerCase()] = fieldValue;
+        };
+        HttpHeader.prototype.exportHeader = function (xhr) {
+            var _this = this;
+            Object.keys(this.header)
+                .filter(function (key) {
+                if (_this.getHeader(key) === undefined ||
+                    _this.getHeader(key) === null) {
+                    return false;
+                }
+                return true;
+            })
+                .forEach(function (key) {
+                var stringValue = (function (value) {
+                    switch (typeof value) {
+                        case 'string': return value;
+                        case 'number': return String(value);
+                        case 'boolean': return String(value);
+                        default:
+                            throw new Error('Invalid type for header value: ' + typeof value);
+                    }
+                }(_this.getHeader(key)));
+                xhr.setRequestHeader(key, stringValue);
+            });
+        };
+        HttpHeader.prototype.getContentType = function () {
+            var value = this.header['content-type'];
+            if (!value) {
+                return {
+                    mediaType: null,
+                    charset: null
+                };
+            }
+            var values = value.split(';').map(function (x) { return x.trim(); });
+            return {
+                mediaType: values[0],
+                charset: values[1] || null
+            };
+        };
+        return HttpHeader;
+    }());
+    exports.HttpHeader = HttpHeader;
     var TimeoutError = (function (_super) {
         __extends(TimeoutError, _super);
         function TimeoutError(timeout, elapsed, message, xhr) {
@@ -69,22 +149,6 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
     var HttpClient = (function () {
         function HttpClient() {
         }
-        HttpClient.prototype.getHeader = function (xhr) {
-            var header = {};
-            var headerString = xhr.getAllResponseHeaders();
-            if (!headerString) {
-                return header;
-            }
-            var headerFields = headerString.split(/\n/);
-            headerFields.pop();
-            headerFields.forEach(function (field) {
-                var firstColon = field.indexOf(':', 0);
-                var name = field.substr(0, firstColon).trim();
-                var value = field.substr(firstColon + 1).trim();
-                header[name] = value;
-            });
-            return header;
-        };
         HttpClient.prototype.request = function (options) {
             var startTime = new Date().getTime();
             var that = this;
@@ -94,7 +158,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                     resolve({
                         status: xhr.status,
                         response: xhr.response,
-                        header: that.getHeader(xhr)
+                        header: new HttpHeader(xhr)
                     });
                 };
                 xhr.ontimeout = function () {
@@ -123,26 +187,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 xhr.withCredentials = options.withCredentials || false;
                 try {
                     if (options.header) {
-                        Object.keys(options.header)
-                            .filter(function (key) {
-                            if (options.header[key] === undefined ||
-                                options.header[key] === null) {
-                                return false;
-                            }
-                            return true;
-                        })
-                            .forEach(function (key) {
-                            var stringValue = (function (value) {
-                                switch (typeof value) {
-                                    case 'string': return value;
-                                    case 'number': return String(value);
-                                    case 'boolean': return String(value);
-                                    default:
-                                        throw new Error('Invalid type for header value: ' + typeof value);
-                                }
-                            }(options.header[key]));
-                            xhr.setRequestHeader(key, stringValue);
-                        });
+                        options.header.exportHeader(xhr);
                     }
                     if (typeof options.data === 'string') {
                         xhr.send(options.data);

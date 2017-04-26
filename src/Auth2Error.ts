@@ -17,7 +17,6 @@ export class AuthError extends Error {
         this.name = 'AuthError';
 
         this.code = errorInfo.code;
-        this.message = errorInfo.message;
         this.detail = errorInfo.detail;
         this.data = errorInfo.data;
         this.stack = (<any>new Error()).stack;

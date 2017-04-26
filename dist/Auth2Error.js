@@ -18,7 +18,6 @@ define(["require", "exports"], function (require, exports) {
             Object.setPrototypeOf(_this, AuthError.prototype);
             _this.name = 'AuthError';
             _this.code = errorInfo.code;
-            _this.message = errorInfo.message;
             _this.detail = errorInfo.detail;
             _this.data = errorInfo.data;
             _this.stack = new Error().stack;

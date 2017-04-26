@@ -1,4 +1,4 @@
-define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Client", "./Auth2Error"], function (require, exports, Cookie_1, Html_1, HttpUtils_1, Auth2Client_1, Auth2Error_1) {
+define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2Client", "./Auth2Error"], function (require, exports, Html_1, HttpUtils_1, HttpClient_1, Auth2Client_1, Auth2Error_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var endpoints = {
@@ -20,6 +20,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
         linkRemove: 'me/unlink',
         tokens: 'tokens',
         tokensRevoke: 'tokens/revoke',
+        tokensRevokeAll: 'tokens/revokeall',
         tokensCreate: 'tokens/create',
         userSearch: 'api/V2/users/search',
         adminUserSearch: 'api/V2/admin/search',
@@ -28,11 +29,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
     var Auth2 = (function () {
         function Auth2(config) {
             this.config = config;
-            this.cookieManager = new Cookie_1.CookieManager();
         }
-        Auth2.prototype.getAuthCookie = function () {
-            return this.cookieManager.getItem(this.config.cookieName);
-        };
         Auth2.prototype.getProviders = function () {
             return [
                 {
@@ -59,9 +56,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                header: {
+                header: new HttpClient_1.HttpHeader({
                     Accept: 'application/json'
-                },
+                }),
                 url: this.makePath([endpoints.root])
             })
                 .then(function (result) {
@@ -155,11 +152,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
-                header: {
-                    Authorization: token,
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json'
-                },
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    'content-type': 'application/json',
+                    accept: 'application/json'
+                }),
                 url: this.makePath([endpoints.linkRemove, config.identityId])
             })
                 .then(function (result) {
@@ -172,11 +169,27 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
-                header: {
-                    Authorization: token,
-                    'Content-Type': 'application/json'
-                },
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    'content-type': 'application/json'
+                }),
                 url: this.config.baseUrl + '/' + endpoints.tokensRevoke + '/' + tokenid
+            })
+                .then(function (result) {
+                return _this.processResult(result, 204);
+            });
+        };
+        Auth2.prototype.revokeAllTokens = function (token) {
+            var _this = this;
+            var httpClient = new Auth2Client_1.AuthClient();
+            return httpClient.request({
+                method: 'DELETE',
+                withCredentials: true,
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    'content-type': 'application/json'
+                }),
+                url: this.config.baseUrl + '/' + endpoints.tokensRevokeAll
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -189,9 +202,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 url: this.makePath([endpoints.tokenInfo]),
                 withCredentials: true,
-                header: {
-                    Authorization: token
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -204,10 +217,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: this.config.baseUrl + '/' + endpoints.apiMe,
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -220,11 +233,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'PUT',
                 withCredentials: true,
                 url: this.makePath(endpoints.me),
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json'
-                },
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json',
+                    'content-type': 'application/json'
+                }),
                 data: JSON.stringify(data)
             })
                 .then(function (result) {
@@ -244,10 +257,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: this.makePath([endpoints.tokens]),
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -260,11 +273,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'POST',
                 withCredentials: true,
                 url: this.makePath(endpoints.tokensCreate),
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json'
-                },
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json',
+                    'content-type': 'application/json'
+                }),
                 data: JSON.stringify(create)
             })
                 .then(function (result) {
@@ -278,9 +291,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: this.makePath(endpoints.loginChoice),
-                header: {
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -293,9 +306,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'DELETE',
                 withCredentials: true,
                 url: this.makePath(endpoints.loginCancel),
-                header: {
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -308,9 +321,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'DELETE',
                 withCredentials: true,
                 url: this.makePath(endpoints.linkCancel),
-                header: {
+                header: new HttpClient_1.HttpHeader({
                     Acccept: 'application/json'
-                }
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -331,10 +344,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 withCredentials: true,
                 url: this.makePath([endpoints.loginPick]),
                 data: JSON.stringify(data),
-                header: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    'content-type': 'application/json',
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -348,10 +361,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 withCredentials: true,
                 url: this.makePath(endpoints.loginCreate),
                 data: JSON.stringify(data),
-                header: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    'content-type': 'application/json',
+                    'accept': 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 201);
@@ -364,9 +377,9 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: this.makePath([endpoints.loginUsernameSuggest, username]),
-                header: {
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -378,11 +391,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.linkChoice,
-                header: {
-                    Accept: 'application/json',
-                    Authorization: token
-                }
+                url: this.makePath(endpoints.linkChoice),
+                header: new HttpClient_1.HttpHeader({
+                    accept: 'application/json',
+                    authorization: token
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -399,11 +412,11 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 withCredentials: true,
                 url: this.makePath(endpoints.linkPick),
                 data: JSON.stringify(data),
-                header: {
-                    Authorization: token,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    'content-type': 'application/json',
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -418,7 +431,7 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                     });
                 }
                 if (result.status === 200 || result.status === 201) {
-                    switch (result.header['Content-Type']) {
+                    switch (result.header.getContentType().mediaType) {
                         case 'application/json':
                             return JSON.parse(result.response);
                         case 'text/plain':
@@ -436,24 +449,31 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 }
             }
             else {
-                var errorData;
+                var auth2ErrorData, errorResponse;
                 var errorText = result.response;
                 try {
-                    switch (result.header['Content-Type']) {
+                    switch (result.header.getContentType().mediaType) {
                         case 'application/json':
-                            errorData = JSON.parse(errorText).error;
+                            auth2ErrorData = JSON.parse(errorText);
                             break;
                         default:
-                            errorData = {
-                                code: 'unknown',
-                                message: 'Unknown error',
-                                text: errorText
+                            errorResponse = {
+                                code: 'invalid-content-type',
+                                status: result.status,
+                                message: 'An invalid content type was returned',
+                                detail: 'An invalid content was returned',
+                                data: {
+                                    text: result.response,
+                                    contentType: result.header.getContentType().mediaType,
+                                    status: result.status
+                                }
                             };
                     }
                 }
                 catch (ex) {
                     throw new Auth2Error_1.AuthError({
                         code: 'decoding-error',
+                        status: result.status,
                         message: 'Error decoding error message',
                         detail: 'Original error code: ' + result.status,
                         data: {
@@ -461,13 +481,16 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                         }
                     });
                 }
-                var code = errorData.code || errorData.appcode || errorData.httpcode || 0;
-                throw new Auth2Error_1.AuthError({
-                    code: String(code),
-                    status: result.status,
-                    message: errorData.message || errorData.apperror,
-                    data: errorData
-                });
+                if (auth2ErrorData) {
+                    var code = auth2ErrorData.code || auth2ErrorData.appcode || auth2ErrorData.httpcode || 0;
+                    throw new Auth2Error_1.AuthError({
+                        code: String(code),
+                        status: result.status,
+                        message: auth2ErrorData.message || auth2ErrorData.apperror,
+                        data: auth2ErrorData
+                    });
+                }
+                throw new Auth2Error_1.AuthError(errorResponse);
             }
         };
         Auth2.prototype.userSearch = function (token, search) {
@@ -481,10 +504,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: url.toString(),
-                header: {
-                    Authorization: token,
-                    'Accept': 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -501,10 +524,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: url.toString(),
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
@@ -517,10 +540,10 @@ define(["require", "exports", "./Cookie", "./Html", "./HttpUtils", "./Auth2Clien
                 method: 'GET',
                 withCredentials: true,
                 url: this.makePath([endpoints.adminUser, username]),
-                header: {
-                    Authorization: token,
-                    Accept: 'application/json'
-                }
+                header: new HttpClient_1.HttpHeader({
+                    authorization: token,
+                    accept: 'application/json'
+                })
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);

@@ -1,4 +1,4 @@
-import { HttpClient, TimeoutError, AbortError, GeneralError } from './HttpClient';
+import { HttpClient, HttpHeader, TimeoutError, AbortError, GeneralError } from './HttpClient';
 
 describe('Basic Test', () => {
     it('creates an httpclient object', () => {
@@ -116,5 +116,19 @@ describe('Basic Test', () => {
             });
         requestPromise.cancel();
     });
-  
+    it('Set a header, get it back', (done) => {
+        let header = new HttpHeader({
+            test: 'Test Value'
+        });
+        expect(header.getHeader('test')).toEqual('Test Value');
+        done();
+    });
+
+    it('Set a header, get it back, case insensitive', (done) => {
+        let header = new HttpHeader({
+            Test: 'Test Value'
+        });
+        expect(header.getHeader('test')).toEqual('Test Value');
+        done();
+    });
 });
