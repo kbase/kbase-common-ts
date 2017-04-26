@@ -1,4 +1,4 @@
-import {Html, AttributeMap} from './Html';
+import {Html} from './Html';
 
 describe('Unit testing of html builder', () => {
     it('Should build a simple query of one field', () => {
@@ -269,18 +269,16 @@ describe('Unit testing of html builder', () => {
     it('Merges simple attribs, overwriting an object (yikes!)', () => {
         let html = new Html();
         let attrib1 = {
-            attr1: {
-                attr2: {
-                    attr3: 'value1'
-                }
+            style: {
+                border: '1px red solid'
             }
         };
         let attrib2 = {
-            attr1: 'value2'
+            style: 'test'
         };
         let result = html.mergeAttribs(attrib1, attrib2);
         let expected = {
-            attr1: 'value2'
+            style: 'test'
         };
         expect(result).toEqual(expected);
     });

@@ -178,6 +178,14 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 return _this.auth2Client.revokeToken(_this.getToken(), tokenId);
             });
         };
+        Auth2Session.prototype.revokeAllTokens = function () {
+            var _this = this;
+            var that = this;
+            return this.getTokenInfo()
+                .then(function (tokenInfo) {
+                return _this.auth2Client.revokeAllTokens(_this.getToken());
+            });
+        };
         Auth2Session.prototype.onChange = function (listener) {
             var utils = new Utils_1.Utils();
             var id = utils.genId();
@@ -203,7 +211,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             });
         };
         Auth2Session.prototype.checkSession = function () {
-            var cookieToken = this.auth2Client.getAuthCookie();
+            var cookieToken = this.getAuthCookie();
             var currentSession = this.getSession();
             var hadSession = currentSession ? true : false;
             var result = null;
@@ -257,6 +265,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             }
             return 'ok';
         };
+        Auth2Session.prototype.getAuthCookie = function () {
+            return this.cookieManager.getItem(this.cookieName);
+        };
         Auth2Session.prototype.evaluateSession = function () {
             var _this = this;
             return Promise.try(function () {
@@ -276,7 +287,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         break;
                     default: throw new Error('Unexpected session state: ' + sessionState);
                 }
-                var cookieToken = _this.auth2Client.getAuthCookie();
+                var cookieToken = _this.getAuthCookie();
                 _this.sessionCache.lastCheckedAt = new Date().getTime();
                 return _this.auth2Client.getTokenInfo(cookieToken)
                     .then(function (tokenInfo) {

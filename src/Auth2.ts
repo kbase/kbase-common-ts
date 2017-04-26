@@ -1,7 +1,6 @@
-import { Cookie, CookieManager } from './Cookie'
 import { Html } from './Html'
 import { HttpQuery } from './HttpUtils'
-import { Response } from './HttpClient'
+import { Response, HttpHeader } from './HttpClient'
 import { AuthClient } from './Auth2Client';
 import * as Promise from 'bluebird';
 import { AuthError, AuthErrorInfo} from './Auth2Error';
@@ -12,17 +11,9 @@ interface AuthProvider {
     logoutUrl: string
 }
 
-export interface CookieConfig {
-    name: string,
-    domain: string
-}
-
 export interface AuthConfig {
-    cookieName: string,
-    extraCookies: Array<CookieConfig>
     baseUrl: string
 }
-
 
 interface AuthEndpoints {
     root: string,
@@ -43,6 +34,7 @@ interface AuthEndpoints {
     linkRemove: string,
     tokens: string,
     tokensRevoke: string,
+    tokensRevokeAll: string,
     tokensCreate: string,
     userSearch: string,
     adminUserSearch: string,
@@ -68,12 +60,12 @@ const endpoints: AuthEndpoints = {
     linkRemove: 'me/unlink',
     tokens: 'tokens',
     tokensRevoke: 'tokens/revoke',
+    tokensRevokeAll: 'tokens/revokeall',
     tokensCreate: 'tokens/create',
     userSearch: 'api/V2/users/search',
     adminUserSearch: 'api/V2/admin/search',
     adminUser: 'api/V2/admin/user'
 }
-
 
 export interface ILoginOptions {
     provider: string,
@@ -239,18 +231,12 @@ export interface PutMeInput {
 // Classes
 
 export class Auth2 {
-    cookieManager: CookieManager;
-
     config: AuthConfig;
 
     constructor(config: AuthConfig) {
         this.config = config;
-        this.cookieManager = new CookieManager();
     }
 
-    getAuthCookie(): string {
-        return this.cookieManager.getItem(this.config.cookieName);
-    }
 
     getProviders(): Array<AuthProvider> {
         return [
@@ -279,9 +265,9 @@ export class Auth2 {
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            header: {
+            header: new HttpHeader({
                 Accept: 'application/json'
-            },
+            }),
             url: this.makePath([endpoints.root])
         })
             .then((result: Response) => {
@@ -298,10 +284,6 @@ export class Auth2 {
     loginStart(config: ILoginOptions): void {
         // Set the client state cookie.
         var state = JSON.stringify(config.state);
-        // var cookies = new CookieManager();
-        // cookies.setItem(new Cookie('client-state')
-        //     .setValue(state)
-        //     .setPath('/'));
 
         // Punt over to the auth service
         let html = new Html();
@@ -412,11 +394,11 @@ export class Auth2 {
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
-            header: {
-                Authorization: token,
-                'Content-Type': 'application/json',
-                Accept: 'application/json'
-            },
+            header: new HttpHeader({
+                authorization: token,
+                'content-type': 'application/json',
+                accept: 'application/json'
+            }),
             url: this.makePath([endpoints.linkRemove, config.identityId])
         })
             .then((result: Response) => {
@@ -431,11 +413,28 @@ export class Auth2 {
         return httpClient.request({
             method: 'DELETE',
             withCredentials: true,
-            header: {
-                Authorization: token,
-                'Content-Type': 'application/json'
-            },
+            header: new HttpHeader({
+                authorization: token,
+                'content-type': 'application/json'
+            }),
             url: this.config.baseUrl + '/' + endpoints.tokensRevoke + '/' + tokenid
+        })
+            .then((result: Response) => {
+                return this.processResult(result, 204);
+            });
+    }
+
+    revokeAllTokens(token: string): Promise<any> {
+        let httpClient = new AuthClient();
+
+        return httpClient.request({
+            method: 'DELETE',
+            withCredentials: true,
+            header: new HttpHeader({
+                authorization: token,
+                'content-type': 'application/json'
+            }),
+            url: this.config.baseUrl + '/' + endpoints.tokensRevokeAll
         })
             .then((result: Response) => {
                 return this.processResult(result, 204);
@@ -448,9 +447,9 @@ export class Auth2 {
             method: 'GET',
             url: this.makePath([endpoints.tokenInfo]),
             withCredentials: true,
-            header: {
-                Authorization: token
-            }
+            header: new HttpHeader({
+                authorization: token
+            })
         })
             .then((result: Response) => {
                 return <ITokenInfo>this.processResult(result, 200);
@@ -463,10 +462,10 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: this.config.baseUrl + '/' + endpoints.apiMe,
-            header: {
-                Authorization: token,
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return <Account>this.processResult(result, 200);
@@ -479,11 +478,11 @@ export class Auth2 {
             method: 'PUT',
             withCredentials: true,
             url: this.makePath(endpoints.me),
-            header: {
-                Authorization: token,
-                Accept: 'application/json',
-                'Content-Type': 'application/json'
-            },
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json',
+                'content-type': 'application/json'
+            }),
             data: JSON.stringify(data)
         })
             .then((result) => {
@@ -504,10 +503,10 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: this.makePath([endpoints.tokens]),
-            header: {
-                Authorization: token,
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return <Tokens>this.processResult(result, 200);
@@ -520,11 +519,11 @@ export class Auth2 {
             method: 'POST',
             withCredentials: true,
             url: this.makePath(endpoints.tokensCreate),
-            header: {
-                Authorization: token,
-                Accept: 'application/json',
-                'Content-Type': 'application/json'
-            },
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json',
+                'content-type': 'application/json'
+            }),
             data: JSON.stringify(create)
         })
             .then((result) => {
@@ -540,9 +539,9 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: this.makePath(endpoints.loginChoice),
-            header: {
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return <LoginChoice>this.processResult(result, 200);
@@ -555,9 +554,9 @@ export class Auth2 {
             method: 'DELETE',
             withCredentials: true,
             url: this.makePath(endpoints.loginCancel),
-            header: {
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                accept: 'application/json'
+            })
         })
         .then((result) => {
             return this.processResult(result, 204);
@@ -570,9 +569,9 @@ export class Auth2 {
             method: 'DELETE',
             withCredentials: true,
             url: this.makePath(endpoints.linkCancel),
-            header: {
+            header: new HttpHeader({
                 Acccept: 'application/json'
-            }
+            })
         })
         .then((result) => {
             return this.processResult(result, 204);
@@ -593,10 +592,10 @@ export class Auth2 {
             withCredentials: true,
             url: this.makePath([endpoints.loginPick]),
             data: JSON.stringify(data),
-            header: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                'content-type': 'application/json',
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 200);
@@ -610,10 +609,10 @@ export class Auth2 {
             withCredentials: true,
             url: this.makePath(endpoints.loginCreate),
             data: JSON.stringify(data),
-            header: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
+            header: new HttpHeader({
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 201);
@@ -627,9 +626,9 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: this.makePath([endpoints.loginUsernameSuggest, username]),
-            header: {
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 200);
@@ -642,11 +641,11 @@ export class Auth2 {
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: this.config.baseUrl + '/' + endpoints.linkChoice,
-            header: {
-                Accept: 'application/json',
-                Authorization: token
-            }
+            url: this.makePath(endpoints.linkChoice),
+            header: new HttpHeader({
+                accept: 'application/json',
+                authorization: token
+            })
         })
             .then((result) => {
                 return this.processResult(result, 200);
@@ -663,18 +662,18 @@ export class Auth2 {
             withCredentials: true,
             url: this.makePath(endpoints.linkPick),
             data: JSON.stringify(data),
-            header: {
-                Authorization: token,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                'content-type': 'application/json',
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 204);
             });
     }
 
-    processResult(result: any, expectedResponse: number): any {
+    processResult(result: Response, expectedResponse: number): any {
         if (result.status >= 200 && result.status < 300) {
             if (expectedResponse !== result.status) {
                 throw new AuthError({
@@ -683,7 +682,7 @@ export class Auth2 {
                 });
             }
             if (result.status === 200 || result.status === 201) {
-                switch (result.header['Content-Type']) {
+                switch (result.header.getContentType().mediaType) {
                     case 'application/json':
                         return JSON.parse(result.response);
                     case 'text/plain':
@@ -703,23 +702,35 @@ export class Auth2 {
             // AuthorizationError - for 401s
             // ClientError - for 400s
             // ServerError - for 500s
-            var errorData;
+            var auth2ErrorData, errorResponse;
             var errorText = result.response;
             try {
-                switch (result.header['Content-Type']) {
+                switch (result.header.getContentType().mediaType) {
                     case 'application/json':
-                        errorData = JSON.parse(errorText).error;
+                        auth2ErrorData = JSON.parse(errorText);
                         break;
                     default:
-                        errorData = {
-                            code: 'unknown',
-                            message: 'Unknown error',
-                            text: errorText
+                        errorResponse = {
+                            code: 'invalid-content-type',
+                            status: result.status,
+                            message: 'An invalid content type was returned',
+                            detail: 'An invalid content was returned',
+                            data: {
+                                text: result.response,
+                                contentType: result.header.getContentType().mediaType,
+                                status: result.status
+                            }
                         };
+                        // errorData = {
+                        //     code: 'unknown',
+                        //     message: 'Unknown error',
+                        //     text: errorText
+                        // };
                 }
             } catch (ex) {
                 throw new AuthError({
                     code: 'decoding-error',
+                    status: result.status,
                     message: 'Error decoding error message',
                     detail: 'Original error code: ' + result.status,
                     data: {
@@ -727,37 +738,16 @@ export class Auth2 {
                     }
                 });
             }
-            let code = errorData.code || errorData.appcode || errorData.httpcode || 0;
-            throw new AuthError({
-                    code: String(code),
-                    status: result.status,
-                    message: errorData.message || errorData.apperror,
-                    data: errorData
-                });
-
-            // switch (result.status) {
-            //     case 401:
-            //     case 400:
-            //         let error = this.decodeError(result);
-            //         throw new AuthError({
-            //             code: String(errorData.error.appCode),
-            //             message: errorData.error.message || errorData.error.appError,
-            //             data: errorData
-            //         });
-            //     case 500:
-            //         let error = this.decodeError(result);
-            //         throw new AuthError({
-            //             code: String(errorData.error.appCode),
-            //             message: errorData.error.message || errorData.error.appError,
-            //             data: errorData
-            //         });
-            //     default:
-            //         throw new AuthError({
-            //             code: 'unexpected-response-status',
-            //             message: 'Unexpected response status: ' + String(result.status),
-            //             data: errorData
-            //         });
-            // }
+            if (auth2ErrorData) {
+                let code = auth2ErrorData.code || auth2ErrorData.appcode || auth2ErrorData.httpcode || 0;
+                throw new AuthError({
+                        code: String(code),
+                        status: result.status,
+                        message: auth2ErrorData.message || auth2ErrorData.apperror,
+                        data: auth2ErrorData
+                    });
+            }
+            throw new AuthError(errorResponse);
         }
     }
 
@@ -773,10 +763,10 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: url.toString(),
-            header: {
-                Authorization: token,
-                'Accept': 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result,200);
@@ -794,10 +784,10 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: url.toString(),
-            header: {
-                Authorization: token,
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 200);
@@ -810,10 +800,10 @@ export class Auth2 {
             method: 'GET',
             withCredentials: true,
             url: this.makePath([endpoints.adminUser, username]),
-            header: {
-                Authorization: token,
-                Accept: 'application/json'
-            }
+            header: new HttpHeader({
+                authorization: token,
+                accept: 'application/json'
+            })
         })
             .then((result) => {
                 return this.processResult(result, 200);

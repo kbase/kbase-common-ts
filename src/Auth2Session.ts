@@ -1,6 +1,6 @@
 import { CookieManager, Cookie } from './Cookie'
 import {
-    Auth2, AuthConfig, CookieConfig, ILoginOptions, ILoginCreateOptions,
+    Auth2, AuthConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
     UserSearchInput, PutMeInput, RootInfo
 } from './Auth2'
@@ -10,6 +10,18 @@ import {
 import { Html } from './Html'
 import { Utils } from './Utils'
 import * as Promise from 'bluebird';
+
+
+export interface CookieConfig {
+    name: string,
+    domain: string
+}
+
+export interface AuthSessionConfig {
+    cookieName: string,
+    baseUrl: string,
+    extraCookies: Array<CookieConfig>
+}
 
 enum CacheState {
     New = 1, // newly created cache, no token info yet.    
@@ -62,7 +74,7 @@ export class Auth2Session {
     //     endpoints: AuthEndpoints,
     //     providers: Array<AuthProvider>
 
-    constructor(config: AuthConfig) {
+    constructor(config: AuthSessionConfig) {
         this.cookieName = config.cookieName;
         this.extraCookies = config.extraCookies;
         this.baseUrl = config.baseUrl;
@@ -70,7 +82,6 @@ export class Auth2Session {
         this.auth2Client = new Auth2(config)
         this.serviceLoopActive = false;
         // TODO: feed this from config.
-
 
         // how long does the cookie live for
         // TODO: set this properly
@@ -265,6 +276,13 @@ export class Auth2Session {
             });
     }
 
+    revokeAllTokens(): Promise<any> {
+        let that = this;
+        return this.getTokenInfo()
+            .then((tokenInfo) => {
+                return this.auth2Client.revokeAllTokens(this.getToken());
+            });
+    }
 
     onChange(listener: Function): string {
         let utils = new Utils();
@@ -290,7 +308,7 @@ export class Auth2Session {
     }
 
     checkSession(): string {
-        let cookieToken = this.auth2Client.getAuthCookie();
+        let cookieToken = this.getAuthCookie();
         let currentSession = this.getSession();
         let hadSession = currentSession ? true : false;
         var result: string | null = null;
@@ -373,6 +391,10 @@ export class Auth2Session {
         return 'ok';
     }
 
+    getAuthCookie(): string {
+        return this.cookieManager.getItem(this.cookieName);
+    }
+
     evaluateSession(): Promise<any> {
         return Promise.try(() => {
             let change: string | null = null;
@@ -393,7 +415,7 @@ export class Auth2Session {
                 default: throw new Error('Unexpected session state: ' + sessionState);
             }
 
-            let cookieToken = this.auth2Client.getAuthCookie();
+            let cookieToken = this.getAuthCookie();
             // if (!cookieToken) {
             //     return;
             // }
