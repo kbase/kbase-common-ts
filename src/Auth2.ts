@@ -739,18 +739,17 @@ export class Auth2 {
                 });
             }
             if (auth2ErrorData) {
-                let code = auth2ErrorData.code || auth2ErrorData.appcode || auth2ErrorData.httpcode || 0;
+                let code = auth2ErrorData.error.code || auth2ErrorData.error.appcode || auth2ErrorData.error.httpcode || 0;
                 throw new AuthError({
                         code: String(code),
                         status: result.status,
-                        message: auth2ErrorData.message || auth2ErrorData.apperror,
+                        message: auth2ErrorData.error.message || auth2ErrorData.error.apperror,
                         data: auth2ErrorData
                     });
             }
             throw new AuthError(errorResponse);
         }
     }
-
 
     userSearch(token: string, search: UserSearchInput): Promise<any> {
         let httpClient = new AuthClient();
