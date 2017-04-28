@@ -2,7 +2,7 @@ import { CookieManager, Cookie } from './Cookie'
 import {
     Auth2, AuthConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
-    UserSearchInput, PutMeInput, RootInfo
+    UserSearchInput, PutMeInput, RootInfo, Account
 } from './Auth2'
 import {
     AuthError
@@ -44,6 +44,7 @@ interface SessionCache {
 interface Session {
     token: string,
     tokenInfo: ITokenInfo,
+    me: Account
 }
 
 export class Auth2Session {
@@ -115,6 +116,14 @@ export class Auth2Session {
         var session = this.getSession();
         if (session) {
             return session.tokenInfo.user;
+        }
+        return null;
+    }
+
+    getEmail(): string | null {
+        var session = this.getSession();
+        if (session) {
+            return session.me.email;
         }
         return null;
     }
@@ -420,8 +429,19 @@ export class Auth2Session {
             //     return;
             // }
             this.sessionCache.lastCheckedAt = new Date().getTime();            
+            // return Promise.all([
+            //     this.auth2Client.getTokenInfo(cookieToken),
+            //     this.auth2Client.getMe(cookieToken)
+            // ])
+            var tokenInfo : ITokenInfo;
+            var me : Account;
             return this.auth2Client.getTokenInfo(cookieToken)
-                .then((tokenInfo) => {
+                .then((result) => {
+                    tokenInfo = result;
+                    return this.auth2Client.getMe(cookieToken);
+                })
+                .then((result) => {
+                    me = result;
                     // TODO detect invalidated token...
                     this.sessionCache.fetchedAt = new Date().getTime();
                     this.sessionCache.state = CacheState.Ok;
@@ -429,6 +449,7 @@ export class Auth2Session {
                     this.sessionCache.session = {
                         token: cookieToken,
                         tokenInfo: tokenInfo,
+                        me: me
                     };
 
                     switch (sessionState) {
