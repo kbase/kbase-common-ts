@@ -47,6 +47,13 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             }
             return null;
         };
+        Auth2Session.prototype.getEmail = function () {
+            var session = this.getSession();
+            if (session) {
+                return session.me.email;
+            }
+            return null;
+        };
         Auth2Session.prototype.getRealname = function () {
             var session = this.getSession();
             if (session) {
@@ -289,14 +296,22 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 }
                 var cookieToken = _this.getAuthCookie();
                 _this.sessionCache.lastCheckedAt = new Date().getTime();
+                var tokenInfo;
+                var me;
                 return _this.auth2Client.getTokenInfo(cookieToken)
-                    .then(function (tokenInfo) {
+                    .then(function (result) {
+                    tokenInfo = result;
+                    return _this.auth2Client.getMe(cookieToken);
+                })
+                    .then(function (result) {
+                    me = result;
                     _this.sessionCache.fetchedAt = new Date().getTime();
                     _this.sessionCache.state = CacheState.Ok;
                     _this.sessionCache.interruptedAt = null;
                     _this.sessionCache.session = {
                         token: cookieToken,
                         tokenInfo: tokenInfo,
+                        me: me
                     };
                     switch (sessionState) {
                         case 'newtoken':
