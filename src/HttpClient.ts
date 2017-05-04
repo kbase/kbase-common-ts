@@ -175,7 +175,6 @@ export interface RequestOptions {
     data?: null | string | Array<number>
 }
 
-
 export interface Response {
     status: number,
     response: string,
