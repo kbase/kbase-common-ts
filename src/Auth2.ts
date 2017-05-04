@@ -710,17 +710,30 @@ export class Auth2 {
                         auth2ErrorData = JSON.parse(errorText);
                         break;
                     default:
-                        errorResponse = {
-                            code: 'invalid-content-type',
-                            status: result.status,
-                            message: 'An invalid content type was returned',
-                            detail: 'An invalid content was returned',
-                            data: {
-                                text: result.response,
-                                contentType: result.header.getContentType().mediaType,
-                                status: result.status
+                        // A 502 proxy error will almost surely not have a json response
+                        if (result.status === 502) {
+                            errorResponse = {
+                                code: 'proxy-error',
+                                status: result.status,
+                                message: 'The auth service could not be contacted due to a proxy error (502)',
+                                detail: 'An error returned by the proxy service indicates that the auth service is not operating corectly',
+                                data: {
+                                    text: result.response
+                                }
                             }
-                        };
+                        } else {
+                            errorResponse = {
+                                code: 'invalid-content-type',
+                                status: result.status,
+                                message: 'An invalid content type was returned',
+                                detail: 'An invalid content was returned',
+                                data: {
+                                    text: result.response,
+                                    contentType: result.header.getContentType().mediaType,
+                                    status: result.status
+                                }
+                            };
+                        }
                         // errorData = {
                         //     code: 'unknown',
                         //     message: 'Unknown error',
