@@ -85,15 +85,6 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         Auth2Session.prototype.isLoggedIn = function () {
             return this.isAuthorized();
         };
-        Auth2Session.prototype.setLastProvider = function (providerId) {
-            this.cookieManager.setItem(new Cookie_1.Cookie('last-provider-used')
-                .setValue(providerId)
-                .setMaxAge(Infinity)
-                .setPath('/'));
-        };
-        Auth2Session.prototype.getLastProvider = function () {
-            return this.cookieManager.getItem('last-provider-used');
-        };
         Auth2Session.prototype.getClient = function () {
             return this.auth2Client;
         };
@@ -143,7 +134,6 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             return this.auth2Client.getLoginChoice();
         };
         Auth2Session.prototype.loginStart = function (config) {
-            this.setLastProvider(config.provider);
             this.auth2Client.loginStart(config);
         };
         Auth2Session.prototype.link = function (config) {
