@@ -35,7 +35,6 @@ interface AuthEndpoints {
     tokens: string,
     tokensRevoke: string,
     tokensRevokeAll: string,
-    tokensCreate: string,
     userSearch: string,
     adminUserSearch: string,
     adminUser: string
@@ -61,7 +60,6 @@ const endpoints: AuthEndpoints = {
     tokens: 'tokens',
     tokensRevoke: 'tokens/revoke',
     tokensRevokeAll: 'tokens/revokeall',
-    tokensCreate: 'tokens/create',
     userSearch: 'api/V2/users/search',
     adminUserSearch: 'api/V2/admin/search',
     adminUser: 'api/V2/admin/user'
@@ -518,7 +516,7 @@ export class Auth2 {
         return httpClient.request({
             method: 'POST',
             withCredentials: true,
-            url: this.makePath(endpoints.tokensCreate),
+            url: this.makePath(endpoints.tokens),
             header: new HttpHeader({
                 authorization: token,
                 accept: 'application/json',

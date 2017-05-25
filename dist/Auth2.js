@@ -21,7 +21,6 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
         tokens: 'tokens',
         tokensRevoke: 'tokens/revoke',
         tokensRevokeAll: 'tokens/revokeall',
-        tokensCreate: 'tokens/create',
         userSearch: 'api/V2/users/search',
         adminUserSearch: 'api/V2/admin/search',
         adminUser: 'api/V2/admin/user'
@@ -272,7 +271,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
-                url: this.makePath(endpoints.tokensCreate),
+                url: this.makePath(endpoints.tokens),
                 header: new HttpClient_1.HttpHeader({
                     authorization: token,
                     accept: 'application/json',
