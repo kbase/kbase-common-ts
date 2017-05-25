@@ -163,16 +163,6 @@ export class Auth2Session {
         return this.isAuthorized();
     }
 
-    setLastProvider(providerId: string): void {
-        this.cookieManager.setItem(new Cookie('last-provider-used')
-            .setValue(providerId)
-            .setMaxAge(Infinity)
-            .setPath('/'));
-    }
-    getLastProvider(): string {
-        return this.cookieManager.getItem('last-provider-used');
-    }
-
     getClient(): Auth2 {
         return this.auth2Client;
     }
@@ -238,7 +228,6 @@ export class Auth2Session {
     }
 
     loginStart(config: ILoginOptions): void {
-        this.setLastProvider(config.provider);
         this.auth2Client.loginStart(config)
     }
 
