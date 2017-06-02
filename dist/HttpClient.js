@@ -171,15 +171,15 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 xhr.onabort = function () {
                     reject(new AbortError('Request was aborted', xhr));
                 };
-                var url = new URL(options.url);
+                var url = options.url;
                 if (options.query) {
-                    url.search = new HttpUtils_1.HttpQuery(options.query).toString();
+                    url += '?' + new HttpUtils_1.HttpQuery(options.query).toString();
                 }
                 if (options.timeout) {
                     xhr.timeout = options.timeout;
                 }
                 try {
-                    xhr.open(options.method, url.toString(), true);
+                    xhr.open(options.method, url, true);
                 }
                 catch (ex) {
                     reject(new GeneralError('Error opening request', xhr));
