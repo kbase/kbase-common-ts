@@ -290,15 +290,15 @@ export class Auth2 {
         let input = t('input');
         let button = t('button');
 
-        var url = new URL(document.location.origin);
-
-        url.search = new HttpQuery({
+        let search = new HttpQuery({
             state: JSON.stringify(config.state)
         }).toString();
 
+        var url = document.location.origin + '?' + search;
+
         let query = {
             provider: config.provider,
-            redirecturl: url.toString(),
+            redirecturl: url,
             stayloggedin: config.stayLoggedIn ? 'true' : 'false'
         };
 
@@ -762,17 +762,21 @@ export class Auth2 {
         }
     }
 
-    userSearch(token: string, search: UserSearchInput): Promise<any> {
+    userSearch(token: string, searchInput: UserSearchInput): Promise<any> {
         let httpClient = new AuthClient();
-        let url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
-        url.search = new HttpQuery({
-            fields: search.fields
+
+        let path = this.makePath([endpoints.userSearch, searchInput.prefix]);
+
+        let search = new HttpQuery({
+            fields: searchInput.fields
         }).toString();
+
+        let url = path + '?'  + search;
 
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: url.toString(),
+            url: url,
             header: new HttpHeader({
                 authorization: token,
                 accept: 'application/json'
@@ -783,17 +787,19 @@ export class Auth2 {
             })
     }
 
-    adminUserSearch(token: string, search: UserSearchInput): Promise<any> {
+    adminUserSearch(token: string, searchInput: UserSearchInput): Promise<any> {
         let httpClient = new AuthClient();
-        let url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
-        url.search = new HttpQuery({
-            fields: search.fields
+        
+        let search = new HttpQuery({
+            fields: searchInput.fields
         }).toString();
+
+        let url = this.makePath([endpoints.adminUserSearch, searchInput.prefix]) + '?' + search;
 
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: url.toString(),
+            url: url,
             header: new HttpHeader({
                 authorization: token,
                 accept: 'application/json'

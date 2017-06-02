@@ -208,9 +208,9 @@ export class HttpClient {
                 reject(new AbortError('Request was aborted', xhr))
             };
 
-            let url = new URL(options.url);
+            var url = options.url;
             if (options.query) {
-                url.search = new HttpQuery(options.query).toString();
+                url += '?' +  new HttpQuery(options.query).toString();
             }
 
             if (options.timeout) {
@@ -218,7 +218,7 @@ export class HttpClient {
             }
 
             try {
-                xhr.open(options.method, url.toString(), true);
+                xhr.open(options.method, url, true);
             } catch (ex) {
                 reject(new GeneralError('Error opening request', xhr));
             }

@@ -71,13 +71,13 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             var form = t('form');
             var input = t('input');
             var button = t('button');
-            var url = new URL(document.location.origin);
-            url.search = new HttpUtils_1.HttpQuery({
+            var search = new HttpUtils_1.HttpQuery({
                 state: JSON.stringify(config.state)
             }).toString();
+            var url = document.location.origin + '?' + search;
             var query = {
                 provider: config.provider,
-                redirecturl: url.toString(),
+                redirecturl: url,
                 stayloggedin: config.stayLoggedIn ? 'true' : 'false'
             };
             var formId = html.genId();
@@ -505,17 +505,18 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 throw new Auth2Error_1.AuthError(errorResponse);
             }
         };
-        Auth2.prototype.userSearch = function (token, search) {
+        Auth2.prototype.userSearch = function (token, searchInput) {
             var _this = this;
             var httpClient = new Auth2Client_1.AuthClient();
-            var url = new URL(this.makePath([endpoints.userSearch, search.prefix]));
-            url.search = new HttpUtils_1.HttpQuery({
-                fields: search.fields
+            var path = this.makePath([endpoints.userSearch, searchInput.prefix]);
+            var search = new HttpUtils_1.HttpQuery({
+                fields: searchInput.fields
             }).toString();
+            var url = path + '?' + search;
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: url.toString(),
+                url: url,
                 header: new HttpClient_1.HttpHeader({
                     authorization: token,
                     accept: 'application/json'
@@ -525,17 +526,17 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 return _this.processResult(result, 200);
             });
         };
-        Auth2.prototype.adminUserSearch = function (token, search) {
+        Auth2.prototype.adminUserSearch = function (token, searchInput) {
             var _this = this;
             var httpClient = new Auth2Client_1.AuthClient();
-            var url = new URL(this.makePath([endpoints.adminUserSearch, search.prefix]));
-            url.search = new HttpUtils_1.HttpQuery({
-                fields: search.fields
+            var search = new HttpUtils_1.HttpQuery({
+                fields: searchInput.fields
             }).toString();
+            var url = this.makePath([endpoints.adminUserSearch, searchInput.prefix]) + '?' + search;
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: url.toString(),
+                url: url,
                 header: new HttpClient_1.HttpHeader({
                     authorization: token,
                     accept: 'application/json'
