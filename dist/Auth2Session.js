@@ -136,8 +136,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         Auth2Session.prototype.loginStart = function (config) {
             this.auth2Client.loginStart(config);
         };
-        Auth2Session.prototype.link = function (config) {
-            return this.auth2Client.linkPost(config);
+        Auth2Session.prototype.linkStart = function (config) {
+            return this.auth2Client.linkStart(this.getToken(), config);
         };
         Auth2Session.prototype.removeLink = function (config) {
             return this.auth2Client.removeLink(this.getToken(), config);
