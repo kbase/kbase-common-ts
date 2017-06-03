@@ -105,7 +105,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             document.body.appendChild(donorNode);
             document.getElementById(formId).submit();
         };
-        Auth2.prototype.linkPost = function (config) {
+        Auth2.prototype.linkStart = function (token, config) {
             var html = new Html_1.Html();
             var t = html.tagMaker();
             var form = t('form');
@@ -126,7 +126,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     type: 'hidden',
                     name: 'provider',
                     value: query.provider
-                }, [])
+                }, []),
+                input({
+                    type: 'hidden',
+                    name: 'token',
+                    value: token
+                })
             ]);
             config.node.innerHTML = content;
             document.getElementById(formId).submit();
@@ -321,7 +326,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 withCredentials: true,
                 url: this.makePath(endpoints.linkCancel),
                 header: new HttpClient_1.HttpHeader({
-                    Acccept: 'application/json'
+                    accept: 'application/json'
                 })
             })
                 .then(function (result) {
@@ -398,6 +403,34 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             })
                 .then(function (result) {
                 return _this.processResult(result, 200);
+            })
+                .then(function (response) {
+                if (response.haslinks) {
+                    return {
+                        id: response.idents[0].id,
+                        expires: response.expires,
+                        cancelurl: response.cancelurl,
+                        pickurl: response.pickurl,
+                        canlink: true,
+                        provider: response.provider,
+                        provusername: response.idents[0].provusername,
+                        linkeduser: null,
+                        user: response.user
+                    };
+                }
+                else {
+                    return {
+                        id: response.linked[0].id,
+                        expires: response.expires,
+                        cancelurl: response.cancelurl,
+                        pickurl: response.pickurl,
+                        canlink: false,
+                        provider: response.provider,
+                        provusername: response.linked[0].provusername,
+                        linkeduser: response.linked[0].user,
+                        user: response.user
+                    };
+                }
             });
         };
         Auth2.prototype.linkPick = function (token, identityId) {

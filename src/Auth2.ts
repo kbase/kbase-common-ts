@@ -176,6 +176,18 @@ export interface LoginChoice {
     redirect?: string
 }
 
+export interface LinkChoice {
+    id: string,
+    expires: number,
+    cancelurl: string,
+    pickurl: string,
+    canlink: boolean,
+    provider: string,
+    provusername: string,
+    linkeduser?: string,
+    user: string
+}
+
 export interface Auth2ApiErrorInfo {
     appcode: number,
     apperror: string,
@@ -332,7 +344,7 @@ export class Auth2 {
     }
 
 
-    linkPost(config: LinkOptions): void {
+    linkStart(token: string, config: LinkOptions): void {
         let html = new Html();
         let t = html.tagMaker();
         let form = t('form');
@@ -356,7 +368,12 @@ export class Auth2 {
                     type: 'hidden',
                     name: 'provider',
                     value: query.provider
-                }, [])
+                }, []),
+                input({
+                    type: 'hidden',
+                    name: 'token',
+                    value: token
+                })
             ]);
 
         config.node.innerHTML = content;
@@ -568,7 +585,7 @@ export class Auth2 {
             withCredentials: true,
             url: this.makePath(endpoints.linkCancel),
             header: new HttpHeader({
-                Acccept: 'application/json'
+                accept: 'application/json'
             })
         })
         .then((result) => {
@@ -647,6 +664,36 @@ export class Auth2 {
         })
             .then((result) => {
                 return this.processResult(result, 200);
+            })
+            .then((response) => {
+                // The link choice structure provided by the auth2 service has evolved
+                // over time, so we normalize it to a structure easier to digest by the
+                // front end.
+                if (response.haslinks) {
+                    return <LinkChoice>{
+                        id: response.idents[0].id,
+                        expires: response.expires,
+                        cancelurl: response.cancelurl,
+                        pickurl: response.pickurl,
+                        canlink: true,
+                        provider: response.provider,
+                        provusername: response.idents[0].provusername,
+                        linkeduser: null,
+                        user: response.user
+                    }
+                } else {
+                    return <LinkChoice>{
+                        id: response.linked[0].id,
+                        expires: response.expires,
+                        cancelurl: response.cancelurl,
+                        pickurl: response.pickurl,
+                        canlink: false,
+                        provider: response.provider,
+                        provusername: response.linked[0].provusername,
+                        linkeduser: response.linked[0].user,
+                        user: response.user
+                    }
+                }
             });
     }
 

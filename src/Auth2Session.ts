@@ -231,8 +231,8 @@ export class Auth2Session {
         this.auth2Client.loginStart(config)
     }
 
-    link(config: LinkOptions) {
-        return this.auth2Client.linkPost(config);
+    linkStart(config: LinkOptions) {
+        return this.auth2Client.linkStart(this.getToken(), config);
     }
 
     removeLink(config: UnlinkOptions) {
