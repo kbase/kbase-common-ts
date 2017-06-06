@@ -315,6 +315,10 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 })
                     .catch(Auth2Error_1.AuthError, function (err) {
                     switch (err.code) {
+                        case '10020':
+                            console.error('Invalid Session Cookie Detected', err);
+                            _this.removeSessionCookie();
+                            _this.notifyListeners('loggedout');
                         case 'connection-error':
                         case 'timeout-error':
                         case 'abort-error':
@@ -333,7 +337,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                             }
                             break;
                         default:
-                            console.error('AUTH ERROR', err);
+                            console.error('Unhandled AUTH ERROR', err);
+                            _this.removeSessionCookie();
+                            _this.notifyListeners('loggedout');
                     }
                 })
                     .catch(function (err) {

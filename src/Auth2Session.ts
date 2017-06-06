@@ -455,6 +455,12 @@ export class Auth2Session {
                 })
                 .catch(AuthError, (err) => {
                     switch (err.code) {
+                        case '10020':
+                            // invalid token - the token is not accepted by the auth2 service, 
+                            // so just invalidate the session.
+                            console.error('Invalid Session Cookie Detected', err);
+                            this.removeSessionCookie();
+                            this.notifyListeners('loggedout');
                         case 'connection-error':
                         case 'timeout-error':
                         case 'abort-error':
@@ -476,7 +482,9 @@ export class Auth2Session {
                             // console.error('CONNECTION ERROR', err);
                             break; 
                         default:
-                            console.error('AUTH ERROR', err);
+                            console.error('Unhandled AUTH ERROR', err);
+                            this.removeSessionCookie();
+                            this.notifyListeners('loggedout');
                     }
                 })
                 .catch((err) => {
