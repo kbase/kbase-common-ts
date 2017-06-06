@@ -602,14 +602,15 @@ export class Auth2Session {
     }
 
     isSessionPersistent(): boolean {
-        var persist = this.cookieManager.getItem('sessionpersist');
-        if (persist === 't') {
-            return true;
-        } else if (persist === 'f') {
-            return false;
-        } else {
-            return true;
-        }
+        return true;
+        // var persist = this.cookieManager.getItem('sessionpersist');
+        // if (persist === 't') {
+        //     return true;
+        // } else if (persist === 'f') {
+        //     return false;
+        // } else {
+        //     return true;
+        // }
     }
 
     userSearch(search: UserSearchInput) {

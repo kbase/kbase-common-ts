@@ -434,16 +434,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 .setMaxAge(Infinity));
         };
         Auth2Session.prototype.isSessionPersistent = function () {
-            var persist = this.cookieManager.getItem('sessionpersist');
-            if (persist === 't') {
-                return true;
-            }
-            else if (persist === 'f') {
-                return false;
-            }
-            else {
-                return true;
-            }
+            return true;
         };
         Auth2Session.prototype.userSearch = function (search) {
             return this.auth2Client.userSearch(this.getToken(), search);
