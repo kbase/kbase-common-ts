@@ -98,7 +98,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(TimeoutError, _super);
         function TimeoutError(timeout, elapsed, message, xhr) {
             var _this = _super.call(this, message) || this;
-            if (Object.setProtypeOf) {
+            if (Object.setPrototypeOf) {
                 Object.setPrototypeOf(_this, TimeoutError.prototype);
             }
             else if (_this.__proto__) {
@@ -123,7 +123,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(GeneralError, _super);
         function GeneralError(message, xhr) {
             var _this = _super.call(this, message) || this;
-            if (Object.setProtypeOf) {
+            if (Object.setPrototypeOf) {
                 Object.setPrototypeOf(_this, GeneralError.prototype);
             }
             else if (_this.__proto__) {
@@ -144,7 +144,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(AbortError, _super);
         function AbortError(message, xhr) {
             var _this = _super.call(this, message) || this;
-            if (Object.setProtypeOf) {
+            if (Object.setPrototypeOf) {
                 Object.setPrototypeOf(_this, AbortError.prototype);
             }
             else if (_this.__proto__) {
