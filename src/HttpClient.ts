@@ -113,7 +113,11 @@ export class TimeoutError extends Error {
         super(message);
 
         // A terrible hack,thanks TypeScript.
-        Object.setPrototypeOf(this, TimeoutError.prototype);
+        if (Object.setProtypeOf) {
+            Object.setPrototypeOf(this, TimeoutError.prototype);
+        } else if (this.__proto__) {
+            this.__proto__ = TimeoutError.prototype;
+        }
 
         this.name = 'TimeoutError';
         this.stack = (<any>new Error()).stack;
@@ -136,7 +140,11 @@ export class GeneralError extends Error {
         super(message);
 
         // A terrible hack,thanks TypeScript.
-        Object.setPrototypeOf(this, GeneralError.prototype);
+        if (Object.setProtypeOf) {
+            Object.setPrototypeOf(this, GeneralError.prototype);
+        } else if (this.__proto__) {
+            this.__proto__ = GeneralError.prototype;
+        }
 
         this.name = 'GeneralError';
         this.stack = (<any>new Error()).stack;
@@ -152,7 +160,11 @@ export class AbortError extends Error {
     xhr: XMLHttpRequest;
     constructor(message: string, xhr: XMLHttpRequest) {
         super(message);
-        Object.setPrototypeOf(this, AbortError.prototype);
+        if (Object.setProtypeOf) {
+            Object.setPrototypeOf(this, AbortError.prototype);
+        } else if (this.__proto__) {
+            this.__proto__ = AbortError.prototype;
+        }
 
         this.name = 'AbortError';
         this.stack = (<any>new Error()).stack;
@@ -213,14 +225,15 @@ export class HttpClient {
                 url += '?' +  new HttpQuery(options.query).toString();
             }
 
-            if (options.timeout) {
-                xhr.timeout = options.timeout;
-            }
-
             try {
                 xhr.open(options.method, url, true);
             } catch (ex) {
-                reject(new GeneralError('Error opening request', xhr));
+                reject(new GeneralError('Error opening request ' + ex.name, xhr));
+                return;
+            }
+
+            if (options.timeout) {
+                xhr.timeout = options.timeout;
             }
 
             xhr.withCredentials = options.withCredentials || false;
@@ -229,7 +242,11 @@ export class HttpClient {
                 if (options.header) {
                     options.header.exportHeader(xhr);
                 }
+            } catch (ex) {
+                reject(new GeneralError('Error applying header before send ' + ex.name, xhr));
+            }
 
+            try {
                 if (typeof options.data === 'string') {
                     xhr.send(options.data);
                     if (onCancel) {

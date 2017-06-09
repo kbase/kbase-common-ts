@@ -98,7 +98,12 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(TimeoutError, _super);
         function TimeoutError(timeout, elapsed, message, xhr) {
             var _this = _super.call(this, message) || this;
-            Object.setPrototypeOf(_this, TimeoutError.prototype);
+            if (Object.setProtypeOf) {
+                Object.setPrototypeOf(_this, TimeoutError.prototype);
+            }
+            else if (_this.__proto__) {
+                _this.__proto__ = TimeoutError.prototype;
+            }
             _this.name = 'TimeoutError';
             _this.stack = new Error().stack;
             _this.timeout = timeout;
@@ -118,7 +123,12 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(GeneralError, _super);
         function GeneralError(message, xhr) {
             var _this = _super.call(this, message) || this;
-            Object.setPrototypeOf(_this, GeneralError.prototype);
+            if (Object.setProtypeOf) {
+                Object.setPrototypeOf(_this, GeneralError.prototype);
+            }
+            else if (_this.__proto__) {
+                _this.__proto__ = GeneralError.prototype;
+            }
             _this.name = 'GeneralError';
             _this.stack = new Error().stack;
             _this.xhr = xhr;
@@ -134,7 +144,12 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         __extends(AbortError, _super);
         function AbortError(message, xhr) {
             var _this = _super.call(this, message) || this;
-            Object.setPrototypeOf(_this, AbortError.prototype);
+            if (Object.setProtypeOf) {
+                Object.setPrototypeOf(_this, AbortError.prototype);
+            }
+            else if (_this.__proto__) {
+                _this.__proto__ = AbortError.prototype;
+            }
             _this.name = 'AbortError';
             _this.stack = new Error().stack;
             _this.xhr = xhr;
@@ -175,20 +190,26 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 if (options.query) {
                     url += '?' + new HttpUtils_1.HttpQuery(options.query).toString();
                 }
-                if (options.timeout) {
-                    xhr.timeout = options.timeout;
-                }
                 try {
                     xhr.open(options.method, url, true);
                 }
                 catch (ex) {
-                    reject(new GeneralError('Error opening request', xhr));
+                    reject(new GeneralError('Error opening request ' + ex.name, xhr));
+                    return;
+                }
+                if (options.timeout) {
+                    xhr.timeout = options.timeout;
                 }
                 xhr.withCredentials = options.withCredentials || false;
                 try {
                     if (options.header) {
                         options.header.exportHeader(xhr);
                     }
+                }
+                catch (ex) {
+                    reject(new GeneralError('Error applying header before send ' + ex.name, xhr));
+                }
+                try {
                     if (typeof options.data === 'string') {
                         xhr.send(options.data);
                         if (onCancel) {
