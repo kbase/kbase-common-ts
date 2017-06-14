@@ -175,12 +175,24 @@ define(["require", "exports"], function (require, exports) {
             }
             var cookie = this.findCookies(key);
             if (cookie.length > 1) {
-                throw new Error('Too many cookies returned, expected 1');
+                throw new Error('Too many cookies returned, expected 1.');
             }
             if (cookie.length === 0) {
                 return null;
             }
             return cookie[0].value;
+        };
+        CookieManager.prototype.getItems = function (key) {
+            if (!key) {
+                return null;
+            }
+            var cookie = this.findCookies(key);
+            if (cookie.length === 0) {
+                return [];
+            }
+            return cookie.map(function (item) {
+                return item.value;
+            });
         };
         CookieManager.prototype.newCookie = function (key) {
             return new Cookie(key);

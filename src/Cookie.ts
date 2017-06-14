@@ -163,7 +163,7 @@ export class CookieManager {
     }
 
     // methods
-    importCookies() {
+    importCookies() : Array<Cookie> {
         var cookieString = this.global.cookie;
         if (cookieString.length > 0) {
             return cookieString.split(/;/)
@@ -171,7 +171,7 @@ export class CookieManager {
                     var pieces = cookie.split('=');
                     var name = pieces[0].trim();
                     var value = pieces[1].trim();
-                    return {
+                    return <Cookie> {
                         name: name,
                         value: decodeURIComponent(value)
                     };
@@ -185,7 +185,7 @@ export class CookieManager {
         return this.importCookies();
     }
 
-    findCookies(key: string) {
+    findCookies(key: string): Array<Cookie> {
         var cookies = this.importCookies();
         return cookies.filter((cookie) => {
             if (cookie.name === key) {
@@ -200,12 +200,25 @@ export class CookieManager {
         }
         var cookie = this.findCookies(key);
         if (cookie.length > 1) {
-            throw new Error('Too many cookies returned, expected 1');
+            throw new Error('Too many cookies returned, expected 1.');
         }
         if (cookie.length === 0) {
             return null;
         }
         return cookie[0].value;
+    }
+
+     getItems(key: string): Array<string> {
+        if (!key) {
+            return null;
+        }
+        var cookie = this.findCookies(key);
+        if (cookie.length === 0) {
+            return [];
+        }
+        return cookie.map(function (item) {
+            return item.value;
+        });
     }
 
     newCookie(key: string) {
