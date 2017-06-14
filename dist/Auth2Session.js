@@ -217,26 +217,38 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 if (this.sessionCache.session) {
                     this.sessionCache.session = null;
                     this.sessionCache.state = CacheState.None;
-                    return 'loggedout';
+                    return {
+                        status: 'loggedout'
+                    };
                 }
                 else {
                     this.sessionCache.state = CacheState.None;
-                    return 'nosession';
+                    return {
+                        status: 'nosession'
+                    };
                 }
             }
             if (this.sessionCache.session === null) {
-                return 'newtoken';
+                return {
+                    status: 'newtoken',
+                    cookie: cookieToken
+                };
             }
             if (cookieToken !== this.sessionCache.session.token) {
                 this.sessionCache.session = null;
-                return 'newtoken';
+                return {
+                    status: 'newtoken',
+                    cookie: cookieToken
+                };
             }
             var expiresIn = this.sessionCache.session.tokenInfo.expires - now;
             if (expiresIn <= 0) {
                 this.sessionCache.session = null;
                 this.sessionCache.state = CacheState.None;
                 this.removeSessionCookie();
-                return 'loggedout';
+                return {
+                    status: 'loggedout'
+                };
             }
             else if (expiresIn <= 300000) {
             }
@@ -245,32 +257,60 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 var checkedFor = now - this.sessionCache.lastCheckedAt;
                 if (interruptedFor < 60000) {
                     if (checkedFor > 5000) {
-                        return 'interrupted-retry';
+                        return {
+                            status: 'interrupted-retry',
+                            cookie: cookieToken
+                        };
                     }
                 }
                 else {
                     if (checkedFor > 60000) {
-                        return 'interrupted-retry';
+                        return {
+                            status: 'interrupted-retry',
+                            cookie: cookieToken
+                        };
                     }
                 }
-                return 'ok';
+                return {
+                    status: 'ok',
+                    cookie: cookieToken
+                };
             }
             var sessionAge = now - this.sessionCache.fetchedAt;
             if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
                 this.sessionCache.state = CacheState.Stale;
-                return 'cacheexpired';
+                return {
+                    status: 'cacheexpired',
+                    cookie: cookieToken
+                };
             }
-            return 'ok';
+            return {
+                status: 'ok',
+                cookie: cookieToken
+            };
         };
         Auth2Session.prototype.getAuthCookie = function () {
-            return this.cookieManager.getItem(this.cookieName);
+            var cookies = this.cookieManager.getItems(this.cookieName);
+            if (cookies.length === 1) {
+                return cookies[0];
+            }
+            if (cookies.length === 0) {
+                return null;
+            }
+            if (cookies.length === 2) {
+                this.removeSessionCookie();
+            }
+            var cookies = this.cookieManager.getItems(this.cookieName);
+            if (cookies.length > 0) {
+                throw new Error('Duplicate session cookie detected and cannot remove it. Please delete your browser cookies for this site.');
+            }
         };
         Auth2Session.prototype.evaluateSession = function () {
             var _this = this;
             return Promise.try(function () {
                 var change = null;
                 var sessionState = _this.checkSession();
-                switch (sessionState) {
+                switch (sessionState.status) {
                     case 'loggedout':
                         _this.notifyListeners('loggedout');
                         return;
@@ -282,9 +322,9 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     case 'newtoken':
                     case 'cacheexpired':
                         break;
-                    default: throw new Error('Unexpected session state: ' + sessionState);
+                    default: throw new Error('Unexpected session state: ' + sessionState.status);
                 }
-                var cookieToken = _this.getAuthCookie();
+                var cookieToken = sessionState.cookie;
                 _this.sessionCache.lastCheckedAt = new Date().getTime();
                 var tokenInfo;
                 var me;
@@ -303,7 +343,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         tokenInfo: tokenInfo,
                         me: me
                     };
-                    switch (sessionState) {
+                    switch (sessionState.status) {
                         case 'newtoken':
                             _this.notifyListeners('loggedin');
                             break;
@@ -325,7 +365,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                             _this.sessionCache.state = CacheState.Interrupted;
                             _this.sessionCache.interruptedAt = new Date().getTime();
                             _this.notifyListeners('interrupted');
-                            switch (sessionState) {
+                            switch (sessionState.status) {
                                 case 'cacheexpired':
                                 case 'newtoken':
                                     _this.sessionCache.fetchedAt = new Date().getTime();
@@ -390,14 +430,11 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             });
         };
         Auth2Session.prototype.setSessionCookie = function (token, expiration) {
-            var _this = this;
             var sessionCookie = new Cookie_1.Cookie(this.cookieName)
                 .setValue(token)
                 .setPath('/')
                 .setSecure(true);
-            if (this.isSessionPersistent()) {
-                sessionCookie.setExpires(new Date(expiration).toUTCString());
-            }
+            sessionCookie.setExpires(new Date(expiration).toUTCString());
             this.cookieManager.setItem(sessionCookie);
             var that = this;
             if (this.extraCookies) {
@@ -406,10 +443,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         .setValue(token)
                         .setPath('/')
                         .setDomain(cookieConfig.domain);
-                    if (_this.isSessionPersistent()) {
-                        extraCookie.setExpires(new Date(expiration).toUTCString());
-                    }
-                    ;
+                    extraCookie.setExpires(new Date(expiration).toUTCString());
                     that.cookieManager.setItem(extraCookie);
                 });
             }
@@ -418,6 +452,13 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             var _this = this;
             this.cookieManager.removeItem(new Cookie_1.Cookie(this.cookieName)
                 .setPath('/'));
+            var domainParts = window.location.hostname.split('.');
+            var domain;
+            for (var len = 2; len <= domainParts.length; len += 1) {
+                domain = domainParts.slice(-len).join('.');
+                this.cookieManager.removeItem(new Cookie_1.Cookie(this.cookieName)
+                    .setPath('/').setDomain(domain));
+            }
             if (this.extraCookies) {
                 this.extraCookies.forEach(function (cookieConfig) {
                     _this.cookieManager.removeItem(new Cookie_1.Cookie(cookieConfig.name)
@@ -425,16 +466,6 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         .setDomain(cookieConfig.domain));
                 });
             }
-        };
-        Auth2Session.prototype.setSessionPersistent = function (isPersistent) {
-            var cookie = new Cookie_1.Cookie('sessionpersist')
-                .setPath('/');
-            this.cookieManager.setItem(cookie
-                .setValue(isPersistent ? 't' : 'f')
-                .setMaxAge(Infinity));
-        };
-        Auth2Session.prototype.isSessionPersistent = function () {
-            return true;
         };
         Auth2Session.prototype.userSearch = function (search) {
             return this.auth2Client.userSearch(this.getToken(), search);
