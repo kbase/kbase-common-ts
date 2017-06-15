@@ -174,7 +174,8 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 method: 'POST',
                 withCredentials: true,
                 header: new HttpClient_1.HttpHeader({
-                    'content-type': 'application/json'
+                    'content-type': 'application/json',
+                    'accept': 'application/json'
                 }),
                 url: this.makePath(endpoints.logout)
             })
