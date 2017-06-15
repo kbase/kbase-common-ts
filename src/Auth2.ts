@@ -428,6 +428,7 @@ export class Auth2 {
             method: 'POST',
             withCredentials: true,
             header: new HttpHeader({
+                authorization: token,
                 'content-type': 'application/json',
                 'accept': 'application/json'
             }),

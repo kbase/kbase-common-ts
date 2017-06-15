@@ -174,6 +174,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 method: 'POST',
                 withCredentials: true,
                 header: new HttpClient_1.HttpHeader({
+                    authorization: token,
                     'content-type': 'application/json',
                     'accept': 'application/json'
                 }),
