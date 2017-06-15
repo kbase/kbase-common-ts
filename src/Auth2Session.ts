@@ -251,15 +251,7 @@ export class Auth2Session {
     }
 
     logout(tokenId?: string): Promise<any> {
-        return this.getTokenInfo()
-            .then((tokenInfo) => {
-                var session = this.getSession();
-                var currentTokenId = session ? session.tokenInfo.id : null;
-                if (tokenId && tokenId !== currentTokenId) {
-                    throw new Error('Supplied token id does not match the current token id, will not log out');
-                }
-                return this.auth2Client.revokeToken(this.getToken(), tokenInfo.id);
-            })
+        return this.auth2Client.logout(this.getToken())
             .then(() => {
                 this.removeSessionCookie();
                 return this.evaluateSession();

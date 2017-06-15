@@ -167,6 +167,21 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 return _this.processResult(result, 204);
             });
         };
+        Auth2.prototype.logout = function (token) {
+            var _this = this;
+            var httpClient = new Auth2Client_1.AuthClient();
+            return httpClient.request({
+                method: 'POST',
+                withCredentials: true,
+                header: new HttpClient_1.HttpHeader({
+                    'content-type': 'application/json'
+                }),
+                url: this.makePath(endpoints.logout)
+            })
+                .then(function (result) {
+                return _this.processResult(result, 200);
+            });
+        };
         Auth2.prototype.revokeToken = function (token, tokenid) {
             var _this = this;
             var httpClient = new Auth2Client_1.AuthClient();
@@ -177,7 +192,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     authorization: token,
                     'content-type': 'application/json'
                 }),
-                url: this.config.baseUrl + '/' + endpoints.tokensRevoke + '/' + tokenid
+                url: this.makePath([endpoints.tokensRevoke, tokenid])
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -193,7 +208,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     authorization: token,
                     'content-type': 'application/json'
                 }),
-                url: this.config.baseUrl + '/' + endpoints.tokensRevokeAll
+                url: this.makePath(endpoints.tokensRevokeAll)
             })
                 .then(function (result) {
                 return _this.processResult(result, 204);
@@ -220,7 +235,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
-                url: this.config.baseUrl + '/' + endpoints.apiMe,
+                url: this.makePath(endpoints.apiMe),
                 header: new HttpClient_1.HttpHeader({
                     authorization: token,
                     accept: 'application/json'

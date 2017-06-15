@@ -153,15 +153,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         };
         Auth2Session.prototype.logout = function (tokenId) {
             var _this = this;
-            return this.getTokenInfo()
-                .then(function (tokenInfo) {
-                var session = _this.getSession();
-                var currentTokenId = session ? session.tokenInfo.id : null;
-                if (tokenId && tokenId !== currentTokenId) {
-                    throw new Error('Supplied token id does not match the current token id, will not log out');
-                }
-                return _this.auth2Client.revokeToken(_this.getToken(), tokenInfo.id);
-            })
+            return this.auth2Client.logout(this.getToken())
                 .then(function () {
                 _this.removeSessionCookie();
                 return _this.evaluateSession();

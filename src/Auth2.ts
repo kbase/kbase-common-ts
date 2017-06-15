@@ -421,6 +421,21 @@ export class Auth2 {
             });
     }
 
+    logout(token: string): Promise<any> {
+        let httpClient = new AuthClient();
+
+        return httpClient.request({
+            method: 'POST',
+            withCredentials: true,
+            header: new HttpHeader({
+                'content-type': 'application/json'
+            }),
+            url: this.makePath(endpoints.logout)
+        })
+        .then((result: Response) => {
+            return this.processResult(result, 200);
+        })
+    }
 
     revokeToken(token: string, tokenid: string): Promise<any> {
         let httpClient = new AuthClient();
@@ -432,7 +447,7 @@ export class Auth2 {
                 authorization: token,
                 'content-type': 'application/json'
             }),
-            url: this.config.baseUrl + '/' + endpoints.tokensRevoke + '/' + tokenid
+            url: this.makePath([endpoints.tokensRevoke, tokenid])
         })
             .then((result: Response) => {
                 return this.processResult(result, 204);
@@ -449,7 +464,7 @@ export class Auth2 {
                 authorization: token,
                 'content-type': 'application/json'
             }),
-            url: this.config.baseUrl + '/' + endpoints.tokensRevokeAll
+            url: this.makePath(endpoints.tokensRevokeAll)
         })
             .then((result: Response) => {
                 return this.processResult(result, 204);
@@ -476,7 +491,7 @@ export class Auth2 {
         return httpClient.request({
             method: 'GET',
             withCredentials: true,
-            url: this.config.baseUrl + '/' + endpoints.apiMe,
+            url: this.makePath(endpoints.apiMe),
             header: new HttpHeader({
                 authorization: token,
                 accept: 'application/json'
