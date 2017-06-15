@@ -428,7 +428,8 @@ export class Auth2 {
             method: 'POST',
             withCredentials: true,
             header: new HttpHeader({
-                'content-type': 'application/json'
+                'content-type': 'application/json',
+                'accept': 'application/json'
             }),
             url: this.makePath(endpoints.logout)
         })
