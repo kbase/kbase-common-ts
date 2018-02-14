@@ -1,8 +1,8 @@
 define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var Cookie = (function () {
-        function Cookie(name) {
+    class Cookie {
+        constructor(name) {
             this.reservedKeys = [
                 'expires',
                 'max-age',
@@ -19,47 +19,47 @@ define(["require", "exports"], function (require, exports) {
             }
             this.name = name;
         }
-        Cookie.prototype.setValue = function (value) {
+        setValue(value) {
             if (value.match(/;/) || value.match(/=/)) {
                 throw new Error('Cookie value may not contain a ; or =');
             }
             this.value = value;
             return this;
-        };
-        Cookie.prototype.setExpires = function (expires) {
+        }
+        setExpires(expires) {
             if (expires.match(/;/)) {
                 throw new Error('Cookie parameter value may not contain a ;');
             }
             this.expires = expires;
             return this;
-        };
-        Cookie.prototype.setDomain = function (domain) {
+        }
+        setDomain(domain) {
             if (domain.match(/;/)) {
                 throw new Error('Cookie parameter value may not contain a ;');
             }
             this.domain = domain;
             return this;
-        };
-        Cookie.prototype.setMaxAge = function (maxAge) {
+        }
+        setMaxAge(maxAge) {
             this.maxAge = maxAge;
             return this;
-        };
-        Cookie.prototype.setPath = function (path) {
+        }
+        setPath(path) {
             if (path.match(/;/)) {
                 throw new Error('Cookie parameter value may not contain a ;');
             }
             this.path = path;
             return this;
-        };
-        Cookie.prototype.setSecure = function (secure) {
+        }
+        setSecure(secure) {
             this.secure = secure;
             return this;
-        };
-        Cookie.prototype.setNoEncode = function (noEncode) {
+        }
+        setNoEncode(noEncode) {
             this.noEncode = noEncode;
             return this;
-        };
-        Cookie.prototype.toString = function () {
+        }
+        toString() {
             var cookieProps = [];
             if (typeof this.domain !== 'undefined') {
                 cookieProps.push({
@@ -124,52 +124,62 @@ define(["require", "exports"], function (require, exports) {
                     this.name,
                     this.value
                 ].join('=')]
-                .concat(cookieProps.map(function (prop) {
-                return [prop.key, prop.value].filter(function (item) {
+                .concat(cookieProps.map((prop) => {
+                return [prop.key, prop.value].filter((item) => {
                     return typeof item === 'undefined' ? false : true;
                 })
                     .join('=');
             }))
                 .join(';');
             return cookieString;
-        };
-        return Cookie;
-    }());
+        }
+    }
     exports.Cookie = Cookie;
-    var CookieManager = (function () {
-        function CookieManager() {
+    class CookieManager {
+        constructor() {
             this.global = document;
         }
-        CookieManager.prototype.importCookies = function () {
+        importCookies() {
             var cookieString = this.global.cookie;
             if (cookieString.length > 0) {
                 return cookieString.split(/;/)
-                    .map(function (cookie) {
+                    .reduce((jar, cookie) => {
                     var pieces = cookie.split('=');
-                    var name = pieces[0].trim();
-                    var value = pieces[1].trim();
-                    return {
+                    var name = pieces[0];
+                    if (pieces.length === 0) {
+                        return jar;
+                    }
+                    name = name.trim();
+                    if (pieces.length === 1) {
+                        jar.push({
+                            name: name,
+                            value: ''
+                        });
+                    }
+                    var value = pieces[1];
+                    jar.push({
                         name: name,
                         value: decodeURIComponent(value)
-                    };
-                });
+                    });
+                    return jar;
+                }, []);
             }
             else {
                 return [];
             }
-        };
-        CookieManager.prototype.getCookies = function () {
+        }
+        getCookies() {
             return this.importCookies();
-        };
-        CookieManager.prototype.findCookies = function (key) {
+        }
+        findCookies(key) {
             var cookies = this.importCookies();
-            return cookies.filter(function (cookie) {
+            return cookies.filter((cookie) => {
                 if (cookie.name === key) {
                     return true;
                 }
             });
-        };
-        CookieManager.prototype.getItem = function (key) {
+        }
+        getItem(key) {
             if (!key) {
                 return null;
             }
@@ -181,8 +191,8 @@ define(["require", "exports"], function (require, exports) {
                 return null;
             }
             return cookie[0].value;
-        };
-        CookieManager.prototype.getItems = function (key) {
+        }
+        getItems(key) {
             if (!key) {
                 return null;
             }
@@ -193,15 +203,15 @@ define(["require", "exports"], function (require, exports) {
             return cookie.map(function (item) {
                 return item.value;
             });
-        };
-        CookieManager.prototype.newCookie = function (key) {
+        }
+        newCookie(key) {
             return new Cookie(key);
-        };
-        CookieManager.prototype.setItem = function (item) {
+        }
+        setItem(item) {
             document.cookie = item.toString();
-        };
-        CookieManager.prototype.removeItem = function (item) {
-            var deletionCookie = new Cookie(item.name)
+        }
+        removeItem(item) {
+            let deletionCookie = new Cookie(item.name)
                 .setPath(item.path)
                 .setValue('*')
                 .setExpires(new Date('1970-01-01T00:00:00Z').toUTCString());
@@ -209,8 +219,7 @@ define(["require", "exports"], function (require, exports) {
                 deletionCookie.setDomain(item.domain);
             }
             this.setItem(deletionCookie);
-        };
-        return CookieManager;
-    }());
+        }
+    }
     exports.CookieManager = CookieManager;
 });
