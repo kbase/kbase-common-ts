@@ -2,11 +2,11 @@ define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     ;
-    var Html = (function () {
-        function Html() {
+    class Html {
+        constructor() {
             this.genIdSerial = 0;
         }
-        Html.prototype.renderChildren = function (children) {
+        renderChildren(children) {
             if (children === null) {
                 return '';
             }
@@ -19,26 +19,26 @@ define(["require", "exports"], function (require, exports) {
             if (!(children instanceof Array)) {
                 throw new Error('hmm, not an array? ' + typeof children);
             }
-            var that = this;
-            return children.map(function (child) {
+            let that = this;
+            return children.map((child) => {
                 return that.renderChildren(child);
             }).join('');
-        };
-        Html.prototype.styleAttribsToString = function (attribs) {
-            var that = this;
-            return Object.keys(attribs).map(function (key) {
-                var value = attribs[key];
-                var attribValue = value;
-                var attribName = key.replace(/[A-Z]/g, function (m) {
+        }
+        styleAttribsToString(attribs) {
+            let that = this;
+            return Object.keys(attribs).map((key) => {
+                let value = attribs[key];
+                let attribValue = value;
+                let attribName = key.replace(/[A-Z]/g, (m) => {
                     return '-' + m.toLowerCase();
                 });
                 return [attribName, attribValue].join(': ');
             }).join('; ');
-        };
-        Html.prototype.attribsToString = function (attribs) {
-            var that = this;
-            return Object.keys(attribs).map(function (key) {
-                var value = attribs[key];
+        }
+        attribsToString(attribs) {
+            let that = this;
+            return Object.keys(attribs).map((key) => {
+                let value = attribs[key];
                 var attribValue;
                 if (typeof value === 'string') {
                     attribValue = '"' + value.replace(/"/, '""') + '"';
@@ -46,19 +46,19 @@ define(["require", "exports"], function (require, exports) {
                 else {
                     attribValue = '"' + that.styleAttribsToString(value) + '"';
                 }
-                var attribName = key.replace(/[A-Z]/g, function (m) {
+                let attribName = key.replace(/[A-Z]/g, (m) => {
                     return '-' + m.toLowerCase();
                 });
                 return [attribName, attribValue].join('=');
             }).join(' ');
-        };
-        Html.prototype.mergeAttribs = function (a, b) {
+        }
+        mergeAttribs(a, b) {
             if (typeof a === 'undefined') {
                 a = {};
             }
-            var merger = function (x, y) {
+            let merger = (x, y) => {
                 if (typeof y === 'object' && y !== null) {
-                    Object.keys(y).forEach(function (key) {
+                    Object.keys(y).forEach((key) => {
                         var xval = x[key];
                         var yval = y[key];
                         if (typeof xval === 'undefined') {
@@ -80,16 +80,15 @@ define(["require", "exports"], function (require, exports) {
             };
             merger(a, b);
             return a;
-        };
-        Html.prototype.tagMaker = function () {
-            var _this = this;
-            var isHtmlNode = function (val) {
+        }
+        tagMaker() {
+            let isHtmlNode = (val) => {
                 return true;
             };
-            var isAttribMap = function (val) {
+            let isAttribMap = (val) => {
                 return true;
             };
-            var notEmpty = function (x) {
+            var notEmpty = (x) => {
                 if ((typeof x === 'undefined') ||
                     (x === null) ||
                     x.length === 0) {
@@ -97,10 +96,9 @@ define(["require", "exports"], function (require, exports) {
                 }
                 return true;
             };
-            var maker = function (name, defaultAttribs) {
-                if (defaultAttribs === void 0) { defaultAttribs = {}; }
-                var tagFun = function (attribs, children) {
-                    var node = '<';
+            var maker = (name, defaultAttribs = {}) => {
+                var tagFun = (attribs, children) => {
+                    let node = '<';
                     if (typeof children === 'undefined') {
                         if (typeof attribs === 'object' &&
                             !(attribs instanceof Array) &&
@@ -109,20 +107,20 @@ define(["require", "exports"], function (require, exports) {
                                 node += name;
                             }
                             else {
-                                var tagAttribs = _this.attribsToString(_this.mergeAttribs(attribs, defaultAttribs));
+                                let tagAttribs = this.attribsToString(this.mergeAttribs(attribs, defaultAttribs));
                                 node += [name, tagAttribs].filter(notEmpty).join(' ');
                             }
                             node += '>';
                         }
                         else if (typeof attribs === 'undefined') {
-                            var tagAttribs = _this.attribsToString(defaultAttribs);
+                            let tagAttribs = this.attribsToString(defaultAttribs);
                             node += [name, tagAttribs].filter(notEmpty).join(' ');
                             node += '>';
                         }
                         else if (isHtmlNode(attribs)) {
-                            var tagAttribs = _this.attribsToString(defaultAttribs);
+                            let tagAttribs = this.attribsToString(defaultAttribs);
                             node += [name, tagAttribs].filter(notEmpty).join(' ');
-                            node += '>' + _this.renderChildren(attribs);
+                            node += '>' + this.renderChildren(attribs);
                         }
                     }
                     else if (isAttribMap(attribs) && isHtmlNode(children)) {
@@ -130,10 +128,10 @@ define(["require", "exports"], function (require, exports) {
                             node += name;
                         }
                         else {
-                            var tagAttribs = _this.attribsToString(_this.mergeAttribs(attribs, defaultAttribs));
+                            let tagAttribs = this.attribsToString(this.mergeAttribs(attribs, defaultAttribs));
                             node += [name, tagAttribs].filter(notEmpty).join(' ');
                         }
-                        node += '>' + _this.renderChildren(children);
+                        node += '>' + this.renderChildren(children);
                     }
                     node += '</' + name + '>';
                     return node;
@@ -141,17 +139,16 @@ define(["require", "exports"], function (require, exports) {
                 return tagFun;
             };
             return maker;
-        };
-        Html.prototype.genId = function () {
-            var random = Math.floor(Math.random() * 1000);
-            var time = new Date().getTime();
+        }
+        genId() {
+            let random = Math.floor(Math.random() * 1000);
+            let time = new Date().getTime();
             if (this.genIdSerial === 1000) {
                 this.genIdSerial = 0;
             }
             this.genIdSerial += 1;
             return [random, time, this.genIdSerial].map(String).join('-');
-        };
-        return Html;
-    }());
+        }
+    }
     exports.Html = Html;
 });

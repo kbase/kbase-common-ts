@@ -1,21 +1,33 @@
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exports, HttpUtils_1, Promise) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     Promise.config({
         cancellation: true
     });
-    var HttpHeader = (function () {
-        function HttpHeader(initialHeaders) {
+    class HttpHeader {
+        static fromXHR(xhr) {
+            let responseHeaders = xhr.getAllResponseHeaders();
+            if (!responseHeaders) {
+                return {};
+            }
+            let fieldsArray = responseHeaders.split(/\n/);
+            var fieldsMap = {};
+            fieldsArray.forEach((field) => {
+                let firstColon = field.indexOf(':', 0);
+                let name = field.substr(0, firstColon).trim();
+                let value = field.substr(firstColon + 1).trim();
+                fieldsMap[name.toLowerCase()] = value;
+            });
+            return fieldsMap;
+        }
+        static fromMap(header) {
+            var fieldsMap = {};
+            Object.keys(header).forEach((name) => {
+                fieldsMap[name.toLowerCase()] = header[name];
+            });
+            return fieldsMap;
+        }
+        constructor(initialHeaders) {
             if (typeof initialHeaders === 'undefined') {
                 this.header = {};
             }
@@ -26,45 +38,22 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 this.header = HttpHeader.fromMap(initialHeaders);
             }
         }
-        HttpHeader.fromXHR = function (xhr) {
-            var responseHeaders = xhr.getAllResponseHeaders();
-            if (!responseHeaders) {
-                return {};
-            }
-            var fieldsArray = responseHeaders.split(/\n/);
-            var fieldsMap = {};
-            fieldsArray.forEach(function (field) {
-                var firstColon = field.indexOf(':', 0);
-                var name = field.substr(0, firstColon).trim();
-                var value = field.substr(firstColon + 1).trim();
-                fieldsMap[name.toLowerCase()] = value;
-            });
-            return fieldsMap;
-        };
-        HttpHeader.fromMap = function (header) {
-            var fieldsMap = {};
-            Object.keys(header).forEach(function (name) {
-                fieldsMap[name.toLowerCase()] = header[name];
-            });
-            return fieldsMap;
-        };
-        HttpHeader.prototype.getHeader = function (fieldName) {
+        getHeader(fieldName) {
             return this.header[fieldName.toLowerCase()];
-        };
-        HttpHeader.prototype.setHeader = function (fieldName, fieldValue) {
+        }
+        setHeader(fieldName, fieldValue) {
             this.header[fieldName.toLowerCase()] = fieldValue;
-        };
-        HttpHeader.prototype.exportHeader = function (xhr) {
-            var _this = this;
+        }
+        exportHeader(xhr) {
             Object.keys(this.header)
-                .filter(function (key) {
-                if (_this.getHeader(key) === undefined ||
-                    _this.getHeader(key) === null) {
+                .filter((key) => {
+                if (this.getHeader(key) === undefined ||
+                    this.getHeader(key) === null) {
                     return false;
                 }
                 return true;
             })
-                .forEach(function (key) {
+                .forEach((key) => {
                 var stringValue = (function (value) {
                     switch (typeof value) {
                         case 'string': return value;
@@ -73,117 +62,92 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                         default:
                             throw new Error('Invalid type for header value: ' + typeof value);
                     }
-                }(_this.getHeader(key)));
+                }(this.getHeader(key)));
                 xhr.setRequestHeader(key, stringValue);
             });
-        };
-        HttpHeader.prototype.getContentType = function () {
-            var value = this.header['content-type'];
+        }
+        getContentType() {
+            let value = this.header['content-type'];
             if (!value) {
                 return {
                     mediaType: null,
                     charset: null
                 };
             }
-            var values = value.split(';').map(function (x) { return x.trim(); });
+            let values = value.split(';').map((x) => x.trim());
             return {
                 mediaType: values[0],
                 charset: values[1] || null
             };
-        };
-        return HttpHeader;
-    }());
-    exports.HttpHeader = HttpHeader;
-    var TimeoutError = (function (_super) {
-        __extends(TimeoutError, _super);
-        function TimeoutError(timeout, elapsed, message, xhr) {
-            var _this = _super.call(this, message) || this;
-            if (Object.setPrototypeOf) {
-                Object.setPrototypeOf(_this, TimeoutError.prototype);
-            }
-            else if (_this.__proto__) {
-                _this.__proto__ = TimeoutError.prototype;
-            }
-            _this.name = 'TimeoutError';
-            _this.stack = new Error().stack;
-            _this.timeout = timeout;
-            _this.elapsed = elapsed;
-            _this.xhr = xhr;
-            return _this;
         }
-        TimeoutError.prototype.toString = function () {
+    }
+    exports.HttpHeader = HttpHeader;
+    class TimeoutError extends Error {
+        constructor(timeout, elapsed, message, xhr) {
+            super(message);
+            Object.setPrototypeOf(this, TimeoutError.prototype);
+            this.name = 'TimeoutError';
+            this.stack = new Error().stack;
+            this.timeout = timeout;
+            this.elapsed = elapsed;
+            this.xhr = xhr;
+        }
+        toString() {
             if (this.message) {
                 return this.message;
             }
-        };
-        return TimeoutError;
-    }(Error));
+        }
+    }
     exports.TimeoutError = TimeoutError;
-    var GeneralError = (function (_super) {
-        __extends(GeneralError, _super);
-        function GeneralError(message, xhr) {
-            var _this = _super.call(this, message) || this;
-            if (Object.setPrototypeOf) {
-                Object.setPrototypeOf(_this, GeneralError.prototype);
-            }
-            else if (_this.__proto__) {
-                _this.__proto__ = GeneralError.prototype;
-            }
-            _this.name = 'GeneralError';
-            _this.stack = new Error().stack;
-            _this.xhr = xhr;
-            return _this;
+    class GeneralError extends Error {
+        constructor(message, xhr) {
+            super(message);
+            Object.setPrototypeOf(this, GeneralError.prototype);
+            this.name = 'GeneralError';
+            this.stack = new Error().stack;
+            this.xhr = xhr;
         }
-        GeneralError.prototype.toString = function () {
+        toString() {
             return this.message;
-        };
-        return GeneralError;
-    }(Error));
+        }
+    }
     exports.GeneralError = GeneralError;
-    var AbortError = (function (_super) {
-        __extends(AbortError, _super);
-        function AbortError(message, xhr) {
-            var _this = _super.call(this, message) || this;
-            if (Object.setPrototypeOf) {
-                Object.setPrototypeOf(_this, AbortError.prototype);
-            }
-            else if (_this.__proto__) {
-                _this.__proto__ = AbortError.prototype;
-            }
-            _this.name = 'AbortError';
-            _this.stack = new Error().stack;
-            _this.xhr = xhr;
-            return _this;
+    class AbortError extends Error {
+        constructor(message, xhr) {
+            super(message);
+            Object.setPrototypeOf(this, AbortError.prototype);
+            this.name = 'AbortError';
+            this.stack = new Error().stack;
+            this.xhr = xhr;
         }
-        AbortError.prototype.toString = function () {
+        toString() {
             return this.message;
-        };
-        return AbortError;
-    }(Error));
-    exports.AbortError = AbortError;
-    var HttpClient = (function () {
-        function HttpClient() {
         }
-        HttpClient.prototype.request = function (options) {
-            var startTime = new Date().getTime();
-            var that = this;
-            return new Promise(function (resolve, reject, onCancel) {
-                var xhr = new XMLHttpRequest();
-                xhr.onload = function () {
+    }
+    exports.AbortError = AbortError;
+    class HttpClient {
+        constructor() {
+        }
+        request(options) {
+            let startTime = new Date().getTime();
+            let that = this;
+            return new Promise((resolve, reject, onCancel) => {
+                let xhr = new XMLHttpRequest();
+                xhr.onload = () => {
                     resolve({
                         status: xhr.status,
                         response: xhr.response,
                         header: new HttpHeader(xhr)
                     });
                 };
-                xhr.ontimeout = function () {
+                xhr.ontimeout = () => {
                     var elapsed = (new Date().getTime()) - startTime;
                     reject(new TimeoutError(options.timeout, elapsed, 'Request timeout', xhr));
                 };
-                xhr.onerror = function () {
+                xhr.onerror = () => {
                     reject(new GeneralError('General request error ' + options.url, xhr));
                 };
-                xhr.onabort = function () {
+                xhr.onabort = () => {
                     reject(new AbortError('Request was aborted', xhr));
                 };
                 var url = options.url;
@@ -213,7 +177,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                     if (typeof options.data === 'string') {
                         xhr.send(options.data);
                         if (onCancel) {
-                            onCancel(function () {
+                            onCancel(() => {
                                 xhr.abort();
                             });
                         }
@@ -235,8 +199,7 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                     reject(new GeneralError('Error sending data in request', xhr));
                 }
             });
-        };
-        return HttpClient;
-    }());
+        }
+    }
     exports.HttpClient = HttpClient;
 });

@@ -167,15 +167,27 @@ export class CookieManager {
         var cookieString = this.global.cookie;
         if (cookieString.length > 0) {
             return cookieString.split(/;/)
-                .map((cookie) => {
+                .reduce((jar, cookie) => {
                     var pieces = cookie.split('=');
-                    var name = pieces[0].trim();
-                    var value = pieces[1].trim();
-                    return <Cookie> {
+                    // handle abuses:
+                    var name = pieces[0];
+                    if (pieces.length === 0) {
+                        return jar;
+                    }
+                    name = name.trim();
+                    if (pieces.length === 1) {
+                        jar.push(<Cookie>{
+                            name: name,
+                            value: ''
+                        });
+                    }
+                    var value = pieces[1];                    
+                    jar.push(<Cookie> {
                         name: name,
                         value: decodeURIComponent(value)
-                    };
-                });
+                    });
+                    return jar;
+                }, []);
         } else {
             return [];
         }

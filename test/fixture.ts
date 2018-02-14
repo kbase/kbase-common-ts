@@ -1,5 +1,5 @@
 export class Fixture {
-    token : string = 'TZZEWGHJ6BT7ECOBJZUFHJSRZEZ7SBAK';
+    token : string = '<kbasetokenhere>';
 
     info() : string {
         return 'something';

@@ -1,21 +1,20 @@
 define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var QueueItem = (function () {
-        function QueueItem(id, run, error) {
+    class QueueItem {
+        constructor(id, run, error) {
             this.run = run;
             this.error = error;
             this.id = id;
         }
-        return QueueItem;
-    }());
+    }
     exports.QueueItem = QueueItem;
-    var AsyncQueue = (function () {
-        function AsyncQueue(queuePauseTime) {
+    class AsyncQueue {
+        constructor(queuePauseTime) {
             this.queuePauseTime = queuePauseTime;
             this.queue = [];
         }
-        AsyncQueue.prototype.processQueue = function () {
+        processQueue() {
             var item = this.queue.shift();
             if (item) {
                 try {
@@ -38,27 +37,25 @@ define(["require", "exports"], function (require, exports) {
                     this.start();
                 }
             }
-        };
-        AsyncQueue.prototype.start = function () {
-            var that = this;
-            this.timer = window.setTimeout(function () {
+        }
+        start() {
+            let that = this;
+            this.timer = window.setTimeout(() => {
                 that.processQueue();
             }, this.queuePauseTime);
-        };
-        AsyncQueue.prototype.stop = function (fun) {
-            var _this = this;
-            this.addItem(function () {
-                window.clearTimeout(_this.timer);
-                _this.timer = null;
+        }
+        stop(fun) {
+            this.addItem(() => {
+                window.clearTimeout(this.timer);
+                this.timer = null;
                 fun();
             });
-        };
-        AsyncQueue.prototype.addItem = function (run, error) {
+        }
+        addItem(run, error) {
             this.itemId += 1;
             this.queue.push(new QueueItem(this.itemId, run, error));
             this.start();
-        };
-        return AsyncQueue;
-    }());
+        }
+    }
     exports.AsyncQueue = AsyncQueue;
 });
