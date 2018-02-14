@@ -11,8 +11,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         CacheState[CacheState["Interrupted"] = 6] = "Interrupted";
         CacheState[CacheState["None"] = 7] = "None";
     })(CacheState || (CacheState = {}));
-    var Auth2Session = (function () {
-        function Auth2Session(config) {
+    class Auth2Session {
+        constructor(config) {
             this.cookieName = config.cookieName;
             this.extraCookies = config.extraCookies;
             this.baseUrl = config.baseUrl;
@@ -27,46 +27,46 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 state: CacheState.New
             };
         }
-        Auth2Session.prototype.getSession = function () {
+        getSession() {
             if (this.sessionCache.state === CacheState.Ok) {
                 return this.sessionCache.session;
             }
             return null;
-        };
-        Auth2Session.prototype.getToken = function () {
+        }
+        getToken() {
             var session = this.getSession();
             if (session) {
                 return session.token;
             }
             return null;
-        };
-        Auth2Session.prototype.getUsername = function () {
+        }
+        getUsername() {
             var session = this.getSession();
             if (session) {
                 return session.tokenInfo.user;
             }
             return null;
-        };
-        Auth2Session.prototype.getEmail = function () {
+        }
+        getEmail() {
             var session = this.getSession();
             if (session) {
                 return session.me.email;
             }
             return null;
-        };
-        Auth2Session.prototype.getRealname = function () {
+        }
+        getRealname() {
             var session = this.getSession();
             if (session) {
                 return session.tokenInfo.name;
             }
             return null;
-        };
-        Auth2Session.prototype.getKbaseSession = function () {
+        }
+        getKbaseSession() {
             var session = this.getSession();
             if (!session) {
                 return null;
             }
-            var info = session.tokenInfo;
+            let info = session.tokenInfo;
             return {
                 un: info.user,
                 user_id: info.user,
@@ -74,123 +74,118 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 token: session.token,
                 kbase_sessionid: null
             };
-        };
-        Auth2Session.prototype.isAuthorized = function () {
+        }
+        isAuthorized() {
             var session = this.getSession();
             if (session) {
                 return true;
             }
             return false;
-        };
-        Auth2Session.prototype.isLoggedIn = function () {
+        }
+        isLoggedIn() {
             return this.isAuthorized();
-        };
-        Auth2Session.prototype.getClient = function () {
+        }
+        getClient() {
             return this.auth2Client;
-        };
-        Auth2Session.prototype.loginPick = function (arg) {
-            var _this = this;
+        }
+        loginPick(arg) {
             return this.auth2Client.loginPick(arg)
-                .then(function (result) {
-                _this.setSessionCookie(result.token.token, result.token.expires);
-                return _this.evaluateSession()
-                    .then(function () {
+                .then((result) => {
+                this.setSessionCookie(result.token.token, result.token.expires);
+                return this.evaluateSession()
+                    .then(() => {
                     return result;
                 });
             });
-        };
-        Auth2Session.prototype.loginCreate = function (data) {
+        }
+        loginCreate(data) {
             return this.auth2Client.loginCreate(data);
-        };
-        Auth2Session.prototype.initializeSession = function (tokenInfo) {
+        }
+        initializeSession(tokenInfo) {
             this.setSessionCookie(tokenInfo.token, tokenInfo.expires);
             return this.evaluateSession();
-        };
-        Auth2Session.prototype.loginUsernameSuggest = function (username) {
+        }
+        loginUsernameSuggest(username) {
             return this.auth2Client.loginUsernameSuggest(username);
-        };
-        Auth2Session.prototype.loginCancel = function () {
+        }
+        loginCancel() {
             return this.auth2Client.loginCancel();
-        };
-        Auth2Session.prototype.linkCancel = function () {
+        }
+        linkCancel() {
             return this.auth2Client.linkCancel();
-        };
-        Auth2Session.prototype.getMe = function () {
+        }
+        getMe() {
             return this.auth2Client.getMe(this.getToken());
-        };
-        Auth2Session.prototype.putMe = function (data) {
+        }
+        putMe(data) {
             return this.auth2Client.putMe(this.getToken(), data);
-        };
-        Auth2Session.prototype.getTokens = function () {
+        }
+        getTokens() {
             return this.auth2Client.getTokens(this.getToken());
-        };
-        Auth2Session.prototype.createToken = function (data) {
+        }
+        createToken(data) {
             return this.auth2Client.createToken(this.getToken(), data);
-        };
-        Auth2Session.prototype.getTokenInfo = function () {
+        }
+        getTokenInfo() {
             return this.auth2Client.getTokenInfo(this.getToken());
-        };
-        Auth2Session.prototype.getLoginCoice = function () {
+        }
+        getLoginCoice() {
             return this.auth2Client.getLoginChoice();
-        };
-        Auth2Session.prototype.loginStart = function (config) {
+        }
+        loginStart(config) {
             this.auth2Client.loginStart(config);
-        };
-        Auth2Session.prototype.linkStart = function (config) {
+        }
+        linkStart(config) {
             return this.auth2Client.linkStart(this.getToken(), config);
-        };
-        Auth2Session.prototype.removeLink = function (config) {
+        }
+        removeLink(config) {
             return this.auth2Client.removeLink(this.getToken(), config);
-        };
-        Auth2Session.prototype.getLinkChoice = function (token) {
+        }
+        getLinkChoice(token) {
             return this.auth2Client.getLinkChoice(this.getToken());
-        };
-        Auth2Session.prototype.linkPick = function (identityId) {
+        }
+        linkPick(identityId) {
             return this.auth2Client.linkPick(this.getToken(), identityId)
-                .then(function (result) {
+                .then((result) => {
                 return result;
             });
-        };
-        Auth2Session.prototype.logout = function (tokenId) {
-            var _this = this;
+        }
+        logout(tokenId) {
             return this.auth2Client.logout(this.getToken())
-                .then(function () {
-                _this.removeSessionCookie();
-                return _this.evaluateSession();
+                .then(() => {
+                this.removeSessionCookie();
+                return this.evaluateSession();
             });
-        };
-        Auth2Session.prototype.revokeToken = function (tokenId) {
-            var _this = this;
-            var that = this;
+        }
+        revokeToken(tokenId) {
+            let that = this;
             return this.getTokenInfo()
-                .then(function (tokenInfo) {
-                return _this.auth2Client.revokeToken(_this.getToken(), tokenId);
+                .then((tokenInfo) => {
+                return this.auth2Client.revokeToken(this.getToken(), tokenId);
             });
-        };
-        Auth2Session.prototype.revokeAllTokens = function () {
-            var _this = this;
-            var that = this;
+        }
+        revokeAllTokens() {
+            let that = this;
             return this.getTokenInfo()
-                .then(function (tokenInfo) {
-                return _this.auth2Client.revokeAllTokens(_this.getToken());
+                .then((tokenInfo) => {
+                return this.auth2Client.revokeAllTokens(this.getToken());
             });
-        };
-        Auth2Session.prototype.onChange = function (listener) {
-            var utils = new Utils_1.Utils();
-            var id = utils.genId();
+        }
+        onChange(listener) {
+            let utils = new Utils_1.Utils();
+            let id = utils.genId();
             this.changeListeners[id] = listener;
             return id;
-        };
-        Auth2Session.prototype.offChange = function (id) {
+        }
+        offChange(id) {
             delete this.changeListeners[id];
-        };
-        Auth2Session.prototype.notifyListeners = function (change) {
-            var _this = this;
+        }
+        notifyListeners(change) {
             if (change === null) {
                 return;
             }
-            Object.keys(this.changeListeners).forEach(function (key) {
-                var listener = _this.changeListeners[key];
+            Object.keys(this.changeListeners).forEach((key) => {
+                let listener = this.changeListeners[key];
                 try {
                     listener(change);
                 }
@@ -198,13 +193,13 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     console.error('Error running change listener', key, ex);
                 }
             });
-        };
-        Auth2Session.prototype.checkSession = function () {
-            var cookieToken = this.getAuthCookie();
-            var currentSession = this.getSession();
-            var hadSession = currentSession ? true : false;
+        }
+        checkSession() {
+            let cookieToken = this.getAuthCookie();
+            let currentSession = this.getSession();
+            let hadSession = currentSession ? true : false;
             var result = null;
-            var now = new Date().getTime();
+            let now = new Date().getTime();
             if (!cookieToken) {
                 if (this.sessionCache.session) {
                     this.sessionCache.session = null;
@@ -233,7 +228,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     cookie: cookieToken
                 };
             }
-            var expiresIn = this.sessionCache.session.tokenInfo.expires - now;
+            let expiresIn = this.sessionCache.session.tokenInfo.expires - now;
             if (expiresIn <= 0) {
                 this.sessionCache.session = null;
                 this.sessionCache.state = CacheState.None;
@@ -245,8 +240,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             else if (expiresIn <= 300000) {
             }
             if (this.sessionCache.state === CacheState.Interrupted) {
-                var interruptedFor = now - this.sessionCache.interruptedAt;
-                var checkedFor = now - this.sessionCache.lastCheckedAt;
+                let interruptedFor = now - this.sessionCache.interruptedAt;
+                let checkedFor = now - this.sessionCache.lastCheckedAt;
                 if (interruptedFor < 60000) {
                     if (checkedFor > 5000) {
                         return {
@@ -268,7 +263,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     cookie: cookieToken
                 };
             }
-            var sessionAge = now - this.sessionCache.fetchedAt;
+            let sessionAge = now - this.sessionCache.fetchedAt;
             if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
                 this.sessionCache.state = CacheState.Stale;
                 return {
@@ -280,8 +275,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 status: 'ok',
                 cookie: cookieToken
             };
-        };
-        Auth2Session.prototype.getAuthCookie = function () {
+        }
+        getAuthCookie() {
             var cookies = this.cookieManager.getItems(this.cookieName);
             if (cookies.length === 1) {
                 return cookies[0];
@@ -296,15 +291,14 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             if (cookies.length > 0) {
                 throw new Error('Duplicate session cookie detected and cannot remove it. Please delete your browser cookies for this site.');
             }
-        };
-        Auth2Session.prototype.evaluateSession = function () {
-            var _this = this;
-            return Promise.try(function () {
-                var change = null;
-                var sessionState = _this.checkSession();
+        }
+        evaluateSession() {
+            return Promise.try(() => {
+                let change = null;
+                let sessionState = this.checkSession();
                 switch (sessionState.status) {
                     case 'loggedout':
-                        _this.notifyListeners('loggedout');
+                        this.notifyListeners('loggedout');
                         return;
                     case 'ok':
                         return;
@@ -316,122 +310,120 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         break;
                     default: throw new Error('Unexpected session state: ' + sessionState.status);
                 }
-                var cookieToken = sessionState.cookie;
-                _this.sessionCache.lastCheckedAt = new Date().getTime();
+                let cookieToken = sessionState.cookie;
+                this.sessionCache.lastCheckedAt = new Date().getTime();
                 var tokenInfo;
                 var me;
-                return _this.auth2Client.getTokenInfo(cookieToken)
-                    .then(function (result) {
+                return this.auth2Client.getTokenInfo(cookieToken)
+                    .then((result) => {
                     tokenInfo = result;
-                    return _this.auth2Client.getMe(cookieToken);
+                    return this.auth2Client.getMe(cookieToken);
                 })
-                    .then(function (result) {
+                    .then((result) => {
                     me = result;
-                    _this.sessionCache.fetchedAt = new Date().getTime();
-                    _this.sessionCache.state = CacheState.Ok;
-                    _this.sessionCache.interruptedAt = null;
-                    _this.sessionCache.session = {
+                    this.sessionCache.fetchedAt = new Date().getTime();
+                    this.sessionCache.state = CacheState.Ok;
+                    this.sessionCache.interruptedAt = null;
+                    this.sessionCache.session = {
                         token: cookieToken,
                         tokenInfo: tokenInfo,
                         me: me
                     };
                     switch (sessionState.status) {
                         case 'newtoken':
-                            _this.notifyListeners('loggedin');
+                            this.notifyListeners('loggedin');
                             break;
                         case 'interrupted-retry':
-                            _this.notifyListeners('restored');
+                            this.notifyListeners('restored');
                             break;
                         case 'cacheexpired':
                     }
                 })
-                    .catch(Auth2Error_1.AuthError, function (err) {
+                    .catch(Auth2Error_1.AuthError, (err) => {
                     switch (err.code) {
                         case '10020':
                             console.error('Invalid Session Cookie Detected', err);
-                            _this.removeSessionCookie();
-                            _this.notifyListeners('loggedout');
+                            this.removeSessionCookie();
+                            this.notifyListeners('loggedout');
                         case 'connection-error':
                         case 'timeout-error':
                         case 'abort-error':
-                            _this.sessionCache.state = CacheState.Interrupted;
-                            _this.sessionCache.interruptedAt = new Date().getTime();
-                            _this.notifyListeners('interrupted');
+                            this.sessionCache.state = CacheState.Interrupted;
+                            this.sessionCache.interruptedAt = new Date().getTime();
+                            this.notifyListeners('interrupted');
                             switch (sessionState.status) {
                                 case 'cacheexpired':
                                 case 'newtoken':
-                                    _this.sessionCache.fetchedAt = new Date().getTime();
-                                    _this.notifyListeners('interrupted');
+                                    this.sessionCache.fetchedAt = new Date().getTime();
+                                    this.notifyListeners('interrupted');
                                     break;
                                 case 'interrupted-retry':
-                                    _this.notifyListeners('interrupted');
+                                    this.notifyListeners('interrupted');
                                     break;
                             }
                             break;
                         default:
                             console.error('Unhandled AUTH ERROR', err);
-                            _this.removeSessionCookie();
-                            _this.notifyListeners('loggedout');
+                            this.removeSessionCookie();
+                            this.notifyListeners('loggedout');
                     }
                 })
-                    .catch(function (err) {
+                    .catch((err) => {
                     console.error('ERROR', err, err instanceof Auth2Error_1.AuthError);
-                    _this.session = null;
-                    _this.removeSessionCookie();
+                    this.session = null;
+                    this.removeSessionCookie();
                     if (sessionState === 'newtoken') {
-                        _this.notifyListeners('loggedout');
+                        this.notifyListeners('loggedout');
                     }
                 });
             });
-        };
-        Auth2Session.prototype.serverTimeOffset = function () {
+        }
+        serverTimeOffset() {
             return this.now - this.root.servertime;
-        };
-        Auth2Session.prototype.start = function () {
-            var _this = this;
+        }
+        start() {
             return this.auth2Client.root()
-                .then(function (root) {
-                _this.root = root;
-                _this.now = new Date().getTime();
-                return Promise.try(function () {
-                    var nextLoop = function () {
-                        if (!_this.serviceLoopActive) {
+                .then((root) => {
+                this.root = root;
+                this.now = new Date().getTime();
+                return Promise.try(() => {
+                    let nextLoop = () => {
+                        if (!this.serviceLoopActive) {
                             return;
                         }
-                        _this.loopTimer = window.setTimeout(serviceLoop, 1000);
+                        this.loopTimer = window.setTimeout(serviceLoop, 1000);
                     };
-                    var serviceLoop = function () {
-                        return _this.evaluateSession()
-                            .then(function () {
+                    let serviceLoop = () => {
+                        return this.evaluateSession()
+                            .then(() => {
                             nextLoop();
                         });
                     };
-                    _this.serviceLoopActive = true;
+                    this.serviceLoopActive = true;
                     return serviceLoop();
                 });
             });
-        };
-        Auth2Session.prototype.stop = function () {
-            var _this = this;
-            return Promise.try(function () {
-                _this.serviceLoopActive = false;
-                if (_this.loopTimer) {
-                    window.clearTimeout(_this.loopTimer);
-                    _this.loopTimer = null;
+        }
+        stop() {
+            return Promise.try(() => {
+                this.serviceLoopActive = false;
+                if (this.loopTimer) {
+                    window.clearTimeout(this.loopTimer);
+                    this.loopTimer = null;
                 }
             });
-        };
-        Auth2Session.prototype.setSessionCookie = function (token, expiration) {
-            var sessionCookie = new Cookie_1.Cookie(this.cookieName)
+        }
+        setSessionCookie(token, expiration) {
+            let sessionCookie = new Cookie_1.Cookie(this.cookieName)
                 .setValue(token)
                 .setPath('/')
                 .setSecure(true);
             sessionCookie.setExpires(new Date(expiration).toUTCString());
             this.cookieManager.setItem(sessionCookie);
-            var that = this;
+            let that = this;
             if (this.extraCookies) {
-                this.extraCookies.forEach(function (cookieConfig) {
-                    var extraCookie = new Cookie_1.Cookie(cookieConfig.name)
+                this.extraCookies.forEach((cookieConfig) => {
+                    let extraCookie = new Cookie_1.Cookie(cookieConfig.name)
                         .setValue(token)
                         .setPath('/')
                         .setDomain(cookieConfig.domain);
@@ -439,12 +431,11 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     that.cookieManager.setItem(extraCookie);
                 });
             }
-        };
-        Auth2Session.prototype.removeSessionCookie = function () {
-            var _this = this;
+        }
+        removeSessionCookie() {
             this.cookieManager.removeItem(new Cookie_1.Cookie(this.cookieName)
                 .setPath('/'));
-            var domainParts = window.location.hostname.split('.');
+            let domainParts = window.location.hostname.split('.');
             var domain;
             for (var len = 2; len <= domainParts.length; len += 1) {
                 domain = domainParts.slice(-len).join('.');
@@ -452,23 +443,22 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     .setPath('/').setDomain(domain));
             }
             if (this.extraCookies) {
-                this.extraCookies.forEach(function (cookieConfig) {
-                    _this.cookieManager.removeItem(new Cookie_1.Cookie(cookieConfig.name)
+                this.extraCookies.forEach((cookieConfig) => {
+                    this.cookieManager.removeItem(new Cookie_1.Cookie(cookieConfig.name)
                         .setPath('/')
                         .setDomain(cookieConfig.domain));
                 });
             }
-        };
-        Auth2Session.prototype.userSearch = function (search) {
+        }
+        userSearch(search) {
             return this.auth2Client.userSearch(this.getToken(), search);
-        };
-        Auth2Session.prototype.adminUserSearch = function (search) {
+        }
+        adminUserSearch(search) {
             return this.auth2Client.adminUserSearch(this.getToken(), search);
-        };
-        Auth2Session.prototype.getAdminUser = function (username) {
+        }
+        getAdminUser(username) {
             return this.auth2Client.getAdminUser(this.getToken(), username);
-        };
-        return Auth2Session;
-    }());
+        }
+    }
     exports.Auth2Session = Auth2Session;
 });

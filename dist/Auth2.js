@@ -1,7 +1,7 @@
 define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2Client", "./Auth2Error"], function (require, exports, Html_1, HttpUtils_1, HttpClient_1, Auth2Client_1, Auth2Error_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var endpoints = {
+    const endpoints = {
         root: '',
         tokenInfo: 'api/V2/token',
         apiMe: 'api/V2/me',
@@ -25,11 +25,11 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
         adminUserSearch: 'api/V2/admin/search',
         adminUser: 'api/V2/admin/user'
     };
-    var Auth2 = (function () {
-        function Auth2(config) {
+    class Auth2 {
+        constructor(config) {
             this.config = config;
         }
-        Auth2.prototype.getProviders = function () {
+        getProviders() {
             return [
                 {
                     id: 'Globus',
@@ -42,16 +42,15 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     logoutUrl: 'https://accounts.google.com/Logout'
                 }
             ];
-        };
-        Auth2.prototype.getProvider = function (providerId) {
+        }
+        getProvider(providerId) {
             var providers = this.getProviders();
-            return providers.filter(function (provider) {
+            return providers.filter((provider) => {
                 return (provider.id === providerId);
             })[0];
-        };
-        Auth2.prototype.root = function () {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        root() {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -60,28 +59,28 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 url: this.makePath([endpoints.root])
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.loginStart = function (config) {
+        }
+        loginStart(config) {
             var state = JSON.stringify(config.state);
-            var html = new Html_1.Html();
-            var t = html.tagMaker();
-            var form = t('form');
-            var input = t('input');
-            var button = t('button');
-            var search = new HttpUtils_1.HttpQuery({
+            let html = new Html_1.Html();
+            let t = html.tagMaker();
+            let form = t('form');
+            let input = t('input');
+            let button = t('button');
+            let search = new HttpUtils_1.HttpQuery({
                 state: JSON.stringify(config.state)
             }).toString();
             var url = document.location.origin + '?' + search;
-            var query = {
+            let query = {
                 provider: config.provider,
                 redirecturl: url,
                 stayloggedin: config.stayLoggedIn ? 'true' : 'false'
             };
-            var formId = html.genId();
-            var content = form({
+            let formId = html.genId();
+            let content = form({
                 method: 'post',
                 id: formId,
                 action: this.makePath(endpoints.loginStart),
@@ -104,17 +103,17 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             donorNode.innerHTML = content;
             document.body.appendChild(donorNode);
             document.getElementById(formId).submit();
-        };
-        Auth2.prototype.linkStart = function (token, config) {
-            var html = new Html_1.Html();
-            var t = html.tagMaker();
-            var form = t('form');
-            var input = t('input');
-            var query = {
+        }
+        linkStart(token, config) {
+            let html = new Html_1.Html();
+            let t = html.tagMaker();
+            let form = t('form');
+            let input = t('input');
+            let query = {
                 provider: config.provider
             };
-            var formId = html.genId();
-            var content = form({
+            let formId = html.genId();
+            let content = form({
                 method: 'POST',
                 id: formId,
                 action: [this.config.baseUrl, endpoints.linkStart].join('/'),
@@ -135,8 +134,8 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
             ]);
             config.node.innerHTML = content;
             document.getElementById(formId).submit();
-        };
-        Auth2.prototype.decodeError = function (result) {
+        }
+        decodeError(result) {
             var error;
             try {
                 return JSON.parse(result.response);
@@ -149,10 +148,9 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     detail: ex.message
                 });
             }
-        };
-        Auth2.prototype.removeLink = function (token, config) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        removeLink(token, config) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -163,13 +161,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 url: this.makePath([endpoints.linkRemove, config.identityId])
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.logout = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        logout(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -180,13 +177,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 url: this.makePath(endpoints.logout)
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.revokeToken = function (token, tokenid) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        revokeToken(token, tokenid) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
@@ -196,13 +192,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 url: this.makePath([endpoints.tokensRevoke, tokenid])
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.revokeAllTokens = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        revokeAllTokens(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
@@ -212,13 +207,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 url: this.makePath(endpoints.tokensRevokeAll)
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.getTokenInfo = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getTokenInfo(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 url: this.makePath([endpoints.tokenInfo]),
@@ -227,13 +221,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     authorization: token
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.getMe = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getMe(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -243,13 +236,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.putMe = function (token, data) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        putMe(token, data) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'PUT',
                 withCredentials: true,
@@ -261,19 +253,18 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 data: JSON.stringify(data)
             })
-                .then(function (result) {
-                _this.processResult(result, 204);
+                .then((result) => {
+                this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.makePath = function (path) {
+        }
+        makePath(path) {
             if (typeof path === 'string') {
                 return [this.config.baseUrl].concat([path]).join('/');
             }
             return [this.config.baseUrl].concat(path).join('/');
-        };
-        Auth2.prototype.getTokens = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getTokens(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -283,13 +274,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.createToken = function (token, create) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        createToken(token, create) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -301,13 +291,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }),
                 data: JSON.stringify(create)
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.getLoginChoice = function () {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getLoginChoice() {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -316,13 +305,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.loginCancel = function () {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        loginCancel() {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
@@ -331,13 +319,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.linkCancel = function () {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        linkCancel() {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'DELETE',
                 withCredentials: true,
@@ -346,20 +333,19 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.loginPick = function (arg) {
-            var _this = this;
-            var data = {
+        }
+        loginPick(arg) {
+            let data = {
                 id: arg.identityId,
                 linkall: arg.linkAll,
-                policyids: arg.agreements.map(function (a) {
+                policyids: arg.agreements.map((a) => {
                     return [a.id, a.version].join('.');
                 })
             };
-            var httpClient = new Auth2Client_1.AuthClient();
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -370,13 +356,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.loginCreate = function (data) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        loginCreate(data) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -387,13 +372,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     'accept': 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 201);
+                .then((result) => {
+                return this.processResult(result, 201);
             });
-        };
-        Auth2.prototype.loginUsernameSuggest = function (username) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        loginUsernameSuggest(username) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -402,13 +386,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.getLinkChoice = function (token) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getLinkChoice(token) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -418,10 +401,10 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     authorization: token
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             })
-                .then(function (response) {
+                .then((response) => {
                 if (response.haslinks) {
                     return {
                         id: response.idents[0].id,
@@ -449,13 +432,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     };
                 }
             });
-        };
-        Auth2.prototype.linkPick = function (token, identityId) {
-            var _this = this;
-            var data = {
+        }
+        linkPick(token, identityId) {
+            let data = {
                 id: identityId
             };
-            var httpClient = new Auth2Client_1.AuthClient();
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'POST',
                 withCredentials: true,
@@ -467,11 +449,11 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 204);
+                .then((result) => {
+                return this.processResult(result, 204);
             });
-        };
-        Auth2.prototype.processResult = function (result, expectedResponse) {
+        }
+        processResult(result, expectedResponse) {
             if (result.status >= 200 && result.status < 300) {
                 if (expectedResponse !== result.status) {
                     throw new Auth2Error_1.AuthError({
@@ -544,7 +526,7 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     });
                 }
                 if (auth2ErrorData) {
-                    var code = auth2ErrorData.error.code || auth2ErrorData.error.appcode || auth2ErrorData.error.httpcode || 0;
+                    let code = auth2ErrorData.error.code || auth2ErrorData.error.appcode || auth2ErrorData.error.httpcode || 0;
                     throw new Auth2Error_1.AuthError({
                         code: String(code),
                         status: result.status,
@@ -554,15 +536,14 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                 }
                 throw new Auth2Error_1.AuthError(errorResponse);
             }
-        };
-        Auth2.prototype.userSearch = function (token, searchInput) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
-            var path = this.makePath([endpoints.userSearch, searchInput.prefix]);
-            var search = new HttpUtils_1.HttpQuery({
+        }
+        userSearch(token, searchInput) {
+            let httpClient = new Auth2Client_1.AuthClient();
+            let path = this.makePath([endpoints.userSearch, searchInput.prefix]);
+            let search = new HttpUtils_1.HttpQuery({
                 fields: searchInput.fields
             }).toString();
-            var url = path + '?' + search;
+            let url = path + '?' + search;
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -572,17 +553,16 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.adminUserSearch = function (token, searchInput) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
-            var search = new HttpUtils_1.HttpQuery({
+        }
+        adminUserSearch(token, searchInput) {
+            let httpClient = new Auth2Client_1.AuthClient();
+            let search = new HttpUtils_1.HttpQuery({
                 fields: searchInput.fields
             }).toString();
-            var url = this.makePath([endpoints.adminUserSearch, searchInput.prefix]) + '?' + search;
+            let url = this.makePath([endpoints.adminUserSearch, searchInput.prefix]) + '?' + search;
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -592,13 +572,12 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        Auth2.prototype.getAdminUser = function (token, username) {
-            var _this = this;
-            var httpClient = new Auth2Client_1.AuthClient();
+        }
+        getAdminUser(token, username) {
+            let httpClient = new Auth2Client_1.AuthClient();
             return httpClient.request({
                 method: 'GET',
                 withCredentials: true,
@@ -608,11 +587,10 @@ define(["require", "exports", "./Html", "./HttpUtils", "./HttpClient", "./Auth2C
                     accept: 'application/json'
                 })
             })
-                .then(function (result) {
-                return _this.processResult(result, 200);
+                .then((result) => {
+                return this.processResult(result, 200);
             });
-        };
-        return Auth2;
-    }());
+        }
+    }
     exports.Auth2 = Auth2;
 });

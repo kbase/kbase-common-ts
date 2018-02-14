@@ -112,12 +112,7 @@ export class TimeoutError extends Error {
     constructor(timeout: number, elapsed: number, message: string, xhr: XMLHttpRequest) {
         super(message);
 
-        // A terrible hack,thanks TypeScript.
-        if (Object.setPrototypeOf) {
-            Object.setPrototypeOf(this, TimeoutError.prototype);
-        } else if (this.__proto__) {
-            this.__proto__ = TimeoutError.prototype;
-        }
+        Object.setPrototypeOf(this, TimeoutError.prototype);
 
         this.name = 'TimeoutError';
         this.stack = (<any>new Error()).stack;
@@ -139,12 +134,7 @@ export class GeneralError extends Error {
     constructor(message: string, xhr: XMLHttpRequest) {
         super(message);
 
-        // A terrible hack,thanks TypeScript.
-        if (Object.setPrototypeOf) {
-            Object.setPrototypeOf(this, GeneralError.prototype);
-        } else if (this.__proto__) {
-            this.__proto__ = GeneralError.prototype;
-        }
+        Object.setPrototypeOf(this, GeneralError.prototype);
 
         this.name = 'GeneralError';
         this.stack = (<any>new Error()).stack;
@@ -160,11 +150,7 @@ export class AbortError extends Error {
     xhr: XMLHttpRequest;
     constructor(message: string, xhr: XMLHttpRequest) {
         super(message);
-        if (Object.setPrototypeOf) {
-            Object.setPrototypeOf(this, AbortError.prototype);
-        } else if (this.__proto__) {
-            this.__proto__ = AbortError.prototype;
-        }
+        Object.setPrototypeOf(this, AbortError.prototype);
 
         this.name = 'AbortError';
         this.stack = (<any>new Error()).stack;
