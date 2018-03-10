@@ -131,7 +131,7 @@ export class Auth2Session {
     getRealname(): string | null {
         var session = this.getSession();
         if (session) {
-            return session.tokenInfo.name;
+            return session.me.display;
         }
         return null;
     }

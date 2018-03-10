@@ -6,7 +6,8 @@
         "preserveConstEnums": true,
         "outDir": "dist",
         "sourceMap": false,
-        "target": "ES6"
+        "target": "es6",
+        "lib": ["es6", "dom"]
     },
     "include": [
         "src/**/*"

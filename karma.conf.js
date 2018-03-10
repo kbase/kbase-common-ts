@@ -3,20 +3,24 @@ module.exports = function(config) {
 
         frameworks: ["jasmine", "karma-typescript"],
 
+        // plugins: [
+        //     'karma-chrome-launcher'
+        // ],
+
         files: [
             { pattern: "src/**/*.ts" },
             { pattern: "test/fixture.ts"}
         ],
 
         preprocessors: {
-            "**/*.ts": ["karma-typescript"]
+            "src/**/*.ts": ["karma-typescript"]
         },
 
         reporters: ["progress", "karma-typescript"],
 
         // browsers: ['Chrome_without_security'],
         // browsers: ['PhantomJS'],
-        browsers: ['FirefoxPreserveLog'],
+        browsers: ['ChromeHeadless'],
         // browsers: ['Firefox'],
         //browsers: ['Chrome'],
 
@@ -27,7 +31,8 @@ module.exports = function(config) {
             preserveConstEnums: true,
             outDir: "dist",
             sourceMap: false,
-            target: "es5"
+            target: "es6",
+            lib: ["es6", "dom"]
         },
 
         customLaunchers: {
@@ -46,12 +51,12 @@ module.exports = function(config) {
             }
         },
 
-        phantomjsLauncher: {
-            options: {
-                settings: {
-                    webSecurityEnabled: false
-                }
-            }
-        }
+        // phantomjsLauncher: {
+        //     options: {
+        //         settings: {
+        //             webSecurityEnabled: false
+        //         }
+        //     }
+        // }
     });
 };
