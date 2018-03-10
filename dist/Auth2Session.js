@@ -57,7 +57,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
         getRealname() {
             var session = this.getSession();
             if (session) {
-                return session.tokenInfo.name;
+                return session.me.display;
             }
             return null;
         }
