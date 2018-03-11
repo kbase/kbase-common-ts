@@ -2,7 +2,7 @@ import { CookieManager, Cookie } from './Cookie'
 import {
     Auth2, AuthConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
-    UserSearchInput, PutMeInput, RootInfo, Account
+    UserSearchInput, PutMeInput, RootInfo, Account, Role
 } from './Auth2'
 import {
     AuthError
@@ -136,6 +136,21 @@ export class Auth2Session {
         return null;
     }
 
+    getRoles(): Array<Role> | null {
+        var session = this.getSession();
+        if (session) {
+            return session.me.roles;
+        }
+        return null;
+    }
+
+    getCustomRoles(): Array<string> | null {
+        var session = this.getSession();
+        if (session) {
+            return session.me.customroles;
+        }
+        return null;
+    }
     getKbaseSession(): any {
         var session = this.getSession();
         if (!session) {

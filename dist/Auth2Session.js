@@ -61,6 +61,20 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             }
             return null;
         }
+        getRoles() {
+            var session = this.getSession();
+            if (session) {
+                return session.me.roles;
+            }
+            return null;
+        }
+        getCustomRoles() {
+            var session = this.getSession();
+            if (session) {
+                return session.me.customroles;
+            }
+            return null;
+        }
         getKbaseSession() {
             var session = this.getSession();
             if (!session) {
