@@ -176,6 +176,7 @@ export interface RequestOptions {
 export interface Response {
     status: number,
     response: string,
+    responseType: string,
     header: HttpHeader
 }
 
@@ -187,11 +188,12 @@ export class HttpClient {
         let startTime = new Date().getTime();
         let that = this;
         return <Promise<Response>>new Promise((resolve, reject, onCancel) => {
-            let xhr = new XMLHttpRequest();
+            const xhr: XMLHttpRequest = new XMLHttpRequest();
             xhr.onload = () => {
                 resolve(<Response>{
                     status: xhr.status,
                     response: xhr.response,
+                    responseType: xhr.responseType,
                     header: new HttpHeader(xhr)
                 });
             };
@@ -210,6 +212,9 @@ export class HttpClient {
             if (options.query) {
                 url += '?' +  new HttpQuery(options.query).toString();
             }
+
+            const rt = (options.responseType || 'text') as XMLHttpRequestResponseType;
+            xhr.responseType = rt;
 
             try {
                 xhr.open(options.method, url, true);

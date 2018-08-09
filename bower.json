@@ -6,12 +6,11 @@
     "Erik Pearson <eapearson@lbl.gov>"
   ],
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://github.com/eapearson/kbase-common-ts",
+  "homepage": "https://github.com/kbase/kbase-common-ts",
   "ignore": [
     "**/.*",
     "node_modules",
     "bower_components",
-    "test",
-    "tests"
+    "test"
   ]
 }
