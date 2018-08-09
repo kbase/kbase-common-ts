@@ -132,11 +132,12 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
             let startTime = new Date().getTime();
             let that = this;
             return new Promise((resolve, reject, onCancel) => {
-                let xhr = new XMLHttpRequest();
+                const xhr = new XMLHttpRequest();
                 xhr.onload = () => {
                     resolve({
                         status: xhr.status,
                         response: xhr.response,
+                        responseType: xhr.responseType,
                         header: new HttpHeader(xhr)
                     });
                 };
@@ -154,6 +155,8 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 if (options.query) {
                     url += '?' + new HttpUtils_1.HttpQuery(options.query).toString();
                 }
+                const rt = (options.responseType || 'text');
+                xhr.responseType = rt;
                 try {
                     xhr.open(options.method, url, true);
                 }
