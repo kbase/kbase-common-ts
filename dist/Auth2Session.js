@@ -1,6 +1,7 @@
 define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", "bluebird"], function (require, exports, Cookie_1, Auth2_1, Auth2Error_1, Utils_1, Promise) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    const SESSION_MONITORING_INTERVAL = 1000;
     var CacheState;
     (function (CacheState) {
         CacheState[CacheState["New"] = 1] = "New";
@@ -34,49 +35,49 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             return null;
         }
         getToken() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.token;
             }
             return null;
         }
         getUsername() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.tokenInfo.user;
             }
             return null;
         }
         getEmail() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.me.email;
             }
             return null;
         }
         getRealname() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.me.display;
             }
             return null;
         }
         getRoles() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.me.roles;
             }
             return null;
         }
         getCustomRoles() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return session.me.customroles;
             }
             return null;
         }
         getKbaseSession() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (!session) {
                 return null;
             }
@@ -90,7 +91,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             };
         }
         isAuthorized() {
-            var session = this.getSession();
+            const session = this.getSession();
             if (session) {
                 return true;
             }
@@ -209,86 +210,86 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             });
         }
         checkSession() {
-            let cookieToken = this.getAuthCookie();
-            let currentSession = this.getSession();
-            let hadSession = currentSession ? true : false;
-            var result = null;
-            let now = new Date().getTime();
-            if (!cookieToken) {
-                if (this.sessionCache.session) {
+            return Promise.try(() => {
+                const cookieToken = this.getAuthCookie();
+                const currentSession = this.getSession();
+                const now = new Date().getTime();
+                if (!cookieToken) {
+                    if (this.sessionCache.session) {
+                        this.sessionCache.session = null;
+                        this.sessionCache.state = CacheState.None;
+                        return {
+                            status: 'loggedout'
+                        };
+                    }
+                    else {
+                        this.sessionCache.state = CacheState.None;
+                        return {
+                            status: 'nosession'
+                        };
+                    }
+                }
+                if (this.sessionCache.session === null) {
+                    return {
+                        status: 'newtoken',
+                        token: cookieToken
+                    };
+                }
+                if (cookieToken !== this.sessionCache.session.token) {
+                    this.sessionCache.session = null;
+                    return {
+                        status: 'newtoken',
+                        token: cookieToken
+                    };
+                }
+                let expiresIn = this.sessionCache.session.tokenInfo.expires - now;
+                if (expiresIn <= 0) {
                     this.sessionCache.session = null;
                     this.sessionCache.state = CacheState.None;
+                    this.removeSessionCookie();
                     return {
                         status: 'loggedout'
                     };
                 }
-                else {
-                    this.sessionCache.state = CacheState.None;
+                else if (expiresIn <= 300000) {
+                }
+                if (this.sessionCache.state === CacheState.Interrupted) {
+                    let interruptedFor = now - this.sessionCache.interruptedAt;
+                    let checkedFor = now - this.sessionCache.lastCheckedAt;
+                    if (interruptedFor < 60000) {
+                        if (checkedFor > 5000) {
+                            return {
+                                status: 'interrupted-retry',
+                                token: cookieToken
+                            };
+                        }
+                    }
+                    else {
+                        if (checkedFor > 60000) {
+                            return {
+                                status: 'interrupted-retry',
+                                token: cookieToken
+                            };
+                        }
+                    }
                     return {
-                        status: 'nosession'
+                        status: 'ok',
+                        token: cookieToken
                     };
                 }
-            }
-            if (this.sessionCache.session === null) {
-                return {
-                    status: 'newtoken',
-                    cookie: cookieToken
-                };
-            }
-            if (cookieToken !== this.sessionCache.session.token) {
-                this.sessionCache.session = null;
-                return {
-                    status: 'newtoken',
-                    cookie: cookieToken
-                };
-            }
-            let expiresIn = this.sessionCache.session.tokenInfo.expires - now;
-            if (expiresIn <= 0) {
-                this.sessionCache.session = null;
-                this.sessionCache.state = CacheState.None;
-                this.removeSessionCookie();
-                return {
-                    status: 'loggedout'
-                };
-            }
-            else if (expiresIn <= 300000) {
-            }
-            if (this.sessionCache.state === CacheState.Interrupted) {
-                let interruptedFor = now - this.sessionCache.interruptedAt;
-                let checkedFor = now - this.sessionCache.lastCheckedAt;
-                if (interruptedFor < 60000) {
-                    if (checkedFor > 5000) {
-                        return {
-                            status: 'interrupted-retry',
-                            cookie: cookieToken
-                        };
-                    }
-                }
-                else {
-                    if (checkedFor > 60000) {
-                        return {
-                            status: 'interrupted-retry',
-                            cookie: cookieToken
-                        };
-                    }
+                let sessionAge = now - this.sessionCache.fetchedAt;
+                if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
+                    this.sessionCache.state = CacheState.Stale;
+                    return {
+                        status: 'cacheexpired',
+                        token: cookieToken
+                    };
                 }
                 return {
                     status: 'ok',
-                    cookie: cookieToken
+                    token: cookieToken
                 };
-            }
-            let sessionAge = now - this.sessionCache.fetchedAt;
-            if (sessionAge > this.sessionCache.session.tokenInfo.cachefor) {
-                this.sessionCache.state = CacheState.Stale;
-                return {
-                    status: 'cacheexpired',
-                    cookie: cookieToken
-                };
-            }
-            return {
-                status: 'ok',
-                cookie: cookieToken
-            };
+            });
         }
         getAuthCookie() {
             var cookies = this.cookieManager.getItems(this.cookieName);
@@ -308,10 +309,41 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             }
             return null;
         }
-        evaluateSession() {
+        ensureExtraSessionCookies(token) {
             return Promise.try(() => {
-                let change = null;
-                let sessionState = this.checkSession();
+                let repairNeeded = false;
+                this.extraCookies.forEach((cookie) => {
+                    const items = this.cookieManager.getItems(cookie.name);
+                    if (items.length === 1) {
+                    }
+                    else if (items.length > 1) {
+                        repairNeeded = false;
+                    }
+                    else {
+                        repairNeeded = true;
+                    }
+                });
+                if (!repairNeeded) {
+                    return;
+                }
+                return this.auth2Client.getTokenInfo(token)
+                    .then((tokenInfo) => {
+                    this.setSessionCookie(token, tokenInfo.expires);
+                });
+            });
+        }
+        evaluateSession() {
+            return this.checkSession()
+                .then((sessionState) => {
+                if (sessionState.token) {
+                    this.ensureExtraSessionCookies(sessionState.token)
+                        .then(() => {
+                        return sessionState;
+                    });
+                }
+                return sessionState;
+            })
+                .then((sessionState) => {
                 switch (sessionState.status) {
                     case 'loggedout':
                         this.notifyListeners('loggedout');
@@ -326,14 +358,14 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         break;
                     default: throw new Error('Unexpected session state: ' + sessionState.status);
                 }
-                let cookieToken = sessionState.cookie;
+                const token = sessionState.token;
                 this.sessionCache.lastCheckedAt = new Date().getTime();
-                var tokenInfo;
-                var me;
-                return this.auth2Client.getTokenInfo(cookieToken)
+                let tokenInfo;
+                let me;
+                return this.auth2Client.getTokenInfo(token)
                     .then((result) => {
                     tokenInfo = result;
-                    return this.auth2Client.getMe(cookieToken);
+                    return this.auth2Client.getMe(token);
                 })
                     .then((result) => {
                     me = result;
@@ -341,10 +373,11 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     this.sessionCache.state = CacheState.Ok;
                     this.sessionCache.interruptedAt = null;
                     this.sessionCache.session = {
-                        token: cookieToken,
-                        tokenInfo: tokenInfo,
-                        me: me
+                        token,
+                        tokenInfo,
+                        me
                     };
+                    this.setSessionCookie(token, tokenInfo.expires);
                     switch (sessionState.status) {
                         case 'newtoken':
                             this.notifyListeners('loggedin');
@@ -388,7 +421,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     console.error('ERROR', err, err instanceof Auth2Error_1.AuthError);
                     this.session = null;
                     this.removeSessionCookie();
-                    if (sessionState === 'newtoken') {
+                    if (sessionState.status === 'newtoken') {
                         this.notifyListeners('loggedout');
                     }
                 });
@@ -407,7 +440,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                         if (!this.serviceLoopActive) {
                             return;
                         }
-                        this.loopTimer = window.setTimeout(serviceLoop, 1000);
+                        this.loopTimer = window.setTimeout(serviceLoop, SESSION_MONITORING_INTERVAL);
                     };
                     let serviceLoop = () => {
                         return this.evaluateSession()
