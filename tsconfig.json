@@ -7,13 +7,17 @@
         "outDir": "dist",
         "sourceMap": false,
         "target": "es6",
-        "lib": ["es6", "dom"]
+        "lib": [
+            "es6",
+            "dom"
+        ]
     },
     "include": [
         "src/**/*"
     ],
     "exclude": [
         "node_modules",
-        "src/**/*.spec.ts"
-    ]
+        "src/*.spec.ts"
+    ],
+    "outDir": "dist"
 }
