@@ -5,6 +5,17 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
         cancellation: true
     });
     class HttpHeader {
+        constructor(initialHeaders) {
+            if (typeof initialHeaders === 'undefined') {
+                this.header = {};
+            }
+            else if (initialHeaders instanceof XMLHttpRequest) {
+                this.header = HttpHeader.fromXHR(initialHeaders);
+            }
+            else {
+                this.header = HttpHeader.fromMap(initialHeaders);
+            }
+        }
         static fromXHR(xhr) {
             let responseHeaders = xhr.getAllResponseHeaders();
             if (!responseHeaders) {
@@ -26,17 +37,6 @@ define(["require", "exports", "./HttpUtils", "bluebird"], function (require, exp
                 fieldsMap[name.toLowerCase()] = header[name];
             });
             return fieldsMap;
-        }
-        constructor(initialHeaders) {
-            if (typeof initialHeaders === 'undefined') {
-                this.header = {};
-            }
-            else if (initialHeaders instanceof XMLHttpRequest) {
-                this.header = HttpHeader.fromXHR(initialHeaders);
-            }
-            else {
-                this.header = HttpHeader.fromMap(initialHeaders);
-            }
         }
         getHeader(fieldName) {
             return this.header[fieldName.toLowerCase()];

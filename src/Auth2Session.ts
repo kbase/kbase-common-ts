@@ -1,26 +1,26 @@
-import { CookieManager, Cookie } from './Cookie'
+import { CookieManager, Cookie } from './Cookie';
 import {
     Auth2, AuthConfig, ILoginOptions, ILoginCreateOptions,
     LinkOptions, UnlinkOptions, ITokenInfo, LoginPick, CreateTokenInput, NewTokenInfo,
     UserSearchInput, PutMeInput, RootInfo, Account, Role
-} from './Auth2'
+} from './Auth2';
 import {
     AuthError
-} from './Auth2Error'
-import { Html } from './Html'
-import { Utils } from './Utils'
+} from './Auth2Error';
+import { Html } from './Html';
+import { Utils } from './Utils';
 import * as Promise from 'bluebird';
 
 
 export interface CookieConfig {
     name: string,
-    domain: string
+    domain: string;
 }
 
 export interface AuthSessionConfig {
     cookieName: string,
     baseUrl: string,
-    extraCookies: Array<CookieConfig>
+    extraCookies: Array<CookieConfig>;
 }
 
 enum CacheState {
@@ -38,13 +38,13 @@ interface SessionCache {
     fetchedAt: number,
     state: CacheState,
     interruptedAt?: number,
-    lastCheckedAt?: number
+    lastCheckedAt?: number;
 }
 
 interface Session {
     token: string,
     tokenInfo: ITokenInfo,
-    me: Account
+    me: Account;
 }
 
 export class Auth2Session {
@@ -64,7 +64,7 @@ export class Auth2Session {
 
     cookieMaxAge: number;
 
-    changeListeners: { [key: string]: Function };
+    changeListeners: { [key: string]: Function; };
 
     root: RootInfo;
 
@@ -80,7 +80,7 @@ export class Auth2Session {
         this.extraCookies = config.extraCookies;
         this.baseUrl = config.baseUrl;
         this.cookieManager = new CookieManager();
-        this.auth2Client = new Auth2(config)
+        this.auth2Client = new Auth2(config);
         this.serviceLoopActive = false;
         // TODO: feed this from config.
 
@@ -94,7 +94,7 @@ export class Auth2Session {
             session: null,
             fetchedAt: 0,
             state: CacheState.New
-        }
+        };
     }
 
     getSession(): Session | null {
@@ -223,7 +223,7 @@ export class Auth2Session {
     }
 
     putMe(data: PutMeInput): Promise<any> {
-        return this.auth2Client.putMe(this.getToken(), data)
+        return this.auth2Client.putMe(this.getToken(), data);
     }
 
     getTokens(): Promise<any> {
@@ -243,7 +243,7 @@ export class Auth2Session {
     }
 
     loginStart(config: ILoginOptions): void {
-        this.auth2Client.loginStart(config)
+        this.auth2Client.loginStart(config);
     }
 
     linkStart(config: LinkOptions) {
@@ -425,6 +425,8 @@ export class Auth2Session {
             return cookies[0];
         }
         if (cookies.length === 0) {
+            // Ensure that any extra cookies are also removed.
+            this.removeSessionCookie();
             return null;
         }
         // Handle case of a domain and host cookie slipping in.
@@ -435,6 +437,7 @@ export class Auth2Session {
         if (cookies.length > 0) {
             throw new Error('Duplicate session cookie detected and cannot remove it. Please delete your browser cookies for this site.');
         }
+        return null;
     }
 
     evaluateSession(): Promise<any> {
@@ -510,7 +513,7 @@ export class Auth2Session {
                                 case 'cacheexpired':
                                 case 'newtoken':
                                     // TODO: go to error page
-                                    this.sessionCache.fetchedAt = new Date().getTime()
+                                    this.sessionCache.fetchedAt = new Date().getTime();
                                     this.notifyListeners('interrupted');
                                     break;
                                 case 'interrupted-retry':
@@ -561,7 +564,7 @@ export class Auth2Session {
                             .then(() => {
                                 nextLoop();
                             });
-                    }
+                    };
                     this.serviceLoopActive = true;
                     return serviceLoop();
                 });
@@ -595,7 +598,8 @@ export class Auth2Session {
                 let extraCookie = new Cookie(cookieConfig.name)
                     .setValue(token)
                     .setPath('/')
-                    .setDomain(cookieConfig.domain);
+                    .setDomain(cookieConfig.domain)
+                    .setSecure(true);
 
                 extraCookie.setExpires(new Date(expiration).toUTCString());
 
@@ -605,12 +609,12 @@ export class Auth2Session {
     }
 
     removeSessionCookie() {
-        // Remove host-based cookie. This is the only one officially set.
+        // Remove host-based cookie. 
         this.cookieManager.removeItem(new Cookie(this.cookieName)
             .setPath('/'));
 
         // Also remove the domain level cookie in case it was in advertently 
-        // created. This can be a cause for a corruupt token, since the old auth
+        // created. This can be a cause for a corrupt token, since the old auth
         // system tokens are invalid, and it could create domain level cookies.
         // New auth code does not (other than the backup cookie.)
         let domainParts = window.location.hostname.split('.');
@@ -626,7 +630,7 @@ export class Auth2Session {
                 this.cookieManager.removeItem(new Cookie(cookieConfig.name)
                     .setPath('/')
                     .setDomain(cookieConfig.domain));
-            })
+            });
         }
     }
 

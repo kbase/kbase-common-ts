@@ -296,6 +296,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                 return cookies[0];
             }
             if (cookies.length === 0) {
+                this.removeSessionCookie();
                 return null;
             }
             if (cookies.length === 2) {
@@ -305,6 +306,7 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
             if (cookies.length > 0) {
                 throw new Error('Duplicate session cookie detected and cannot remove it. Please delete your browser cookies for this site.');
             }
+            return null;
         }
         evaluateSession() {
             return Promise.try(() => {
@@ -440,7 +442,8 @@ define(["require", "exports", "./Cookie", "./Auth2", "./Auth2Error", "./Utils", 
                     let extraCookie = new Cookie_1.Cookie(cookieConfig.name)
                         .setValue(token)
                         .setPath('/')
-                        .setDomain(cookieConfig.domain);
+                        .setDomain(cookieConfig.domain)
+                        .setSecure(true);
                     extraCookie.setExpires(new Date(expiration).toUTCString());
                     that.cookieManager.setItem(extraCookie);
                 });
